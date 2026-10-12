@@ -1,4 +1,5 @@
-"""from api import (
+import api
+from api import (
     API,
     ArazimWarsBot,
     BloonInfo,
@@ -9,8 +10,7 @@
     Monkeys,
     Result,
 )
-"""
-import api
+
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
 
@@ -51,7 +51,7 @@ class PlaceMonkey(Play):
         self.kind = kind
         self.position = position
 
-    def run(self, context:API) -> bool:
+    def run(self, context: API) -> bool:
         return context.place_monkey(self.kind, self.position) == Result.OK
 
 
@@ -95,20 +95,6 @@ class Brain:
         for p in plays:
             if p.do_play(self.round_num, self.context.get_money(), self.context):
                 return
-
-    # def minimal_defend(self) -> None:
-    #     self.get_current_round()
-    #     if self.round_num >= 14:
-    #         return
-    #     if self.context.get_map() == Maps.INTERCHANGE:
-    #         self.sequential_play(
-    #             [
-    #                 PlaceMonkey(range(3), 0, Monkeys.DART_MONKEY, (197, 286)),
-    #                 UpgradeMonkey(range(3), 0, 0, [3, 0]),
-    #             ]
-    #         )
-    #     elif self.context.get_map() == Maps.SHAPES:
-    #         self.sequential_play([])
 
     def place_monkey(self, kind: Monkeys, position: tuple[float, float]) -> bool:
         if self.context.place_monkey(kind, position) == Result.OK:
@@ -343,7 +329,7 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
-        # self.brain.handle_monkey_placement_and_upgrades()
+        self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
         # self.brain.handle_econ()
