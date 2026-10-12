@@ -14,7 +14,7 @@ from api import (
     Result,
 )
 
-
+ROUND_INF = 100
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
 
@@ -49,6 +49,14 @@ class PlaceMonkey(Play):
         kind: Monkeys,
         position: tuple[float, float],
     ) -> None:
+        """
+        Args:
+            did_it: did the action
+            round_range: range of rounds we want the play to happen in
+            minimal_balance: minimal balance needed to do the play
+            idx: monkey idx
+            wanted_rows: a len 2 array of the wanted upgrades and when to do them
+        """
         self.did_it = False
         self.round_range = round_range
         self.minimal_balance = minimal_balance
@@ -60,9 +68,21 @@ class PlaceMonkey(Play):
 
 
 class UpgradeMonkey(Play):
+    """
+    upgrade monkey play
+    """
+
     def __init__(
         self, round_range: range, minimal_balance: int, idx: int, wanted_rows: list[int]
     ) -> None:
+        """
+        Args:
+            did_it: did the action
+            round_range: range of rounds we want the play to happen in
+            minimal_balance: minimal balance needed to do the play
+            idx: monkey idx
+            wanted_rows: a len 2 array of the wanted upgrades and when to do them
+        """
         self.did_it = False
         self.round_range = round_range
         self.minimal_balance = minimal_balance
@@ -357,27 +377,56 @@ class MyBot(ArazimWarsBot):
         # self.brain.handle_emotes()
         # self.brain.handle_econ()
 
-ROUND_INF=100
 
-BANANZA_TEMPLE_PLAYS = [
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (365, 175)),
+# idxs: Tack 0, Tack 1, Sniper 2
+# Ninja 3, Super 4, Ninja 5, Super 6, Sniper 7, Sniper 8, Sniper 9
+BANANZA_INTERCHANGE_PLAYS = [
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (234, 164)),
     UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (313, 161)),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (271, 202)),
     UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (33,165)),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 26)),
     UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (348, 262)),
-    UpgradeMonkey(range(ROUND_INF), 0, 3, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (451, 123)),
-    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (238, 390)),
-    UpgradeMonkey(range(ROUND_INF), 0, 5, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (249, 194)),
-    UpgradeMonkey(range(ROUND_INF), 0, 6, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 217)),
-    UpgradeMonkey(range(ROUND_INF), 0, 7, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 271)),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (248, 361)),
+    UpgradeMonkey(range(ROUND_INF), 0, 3, [4, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (358, 301)),
+    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (249, 420)),
+    UpgradeMonkey(range(ROUND_INF), 0, 5, [4, 0]),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [2, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (167, 258)),
+    UpgradeMonkey(range(ROUND_INF), 0, 6, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 79)),
+    UpgradeMonkey(range(ROUND_INF), 0, 7, [3, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 140)),
     UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 323)),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 200)),
     UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
 ]
+BANANZA_YELLOWBRICK_PLAYS = [
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (347, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (454, 613)),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (202, 280)),
+    UpgradeMonkey(range(ROUND_INF), 0, 3, [4, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (314, 262)),
+    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (259, 304)),
+    UpgradeMonkey(range(ROUND_INF), 0, 5, [4, 0]),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [2, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (128, 284)),
+    UpgradeMonkey(range(ROUND_INF), 0, 6, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (400, 613)),
+    UpgradeMonkey(range(ROUND_INF), 0, 7, [3, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (397, 557)),
+    UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (453, 553)),
+    UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
+]
+PLAYS = {
+    Maps.INTERCHANGE: BANANZA_INTERCHANGE_PLAYS,
+    Maps.YELLOW_BRICK: BANANZA_YELLOWBRICK_PLAYS,
+}
