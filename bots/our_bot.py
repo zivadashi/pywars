@@ -1,6 +1,18 @@
 from __future__ import annotations
 
-from api import API, BloonInfo, Bloons, Maps, Monkeys, Result
+from api import (
+    API,
+    ArazimWarsBot,
+    BloonInfo,
+    Bloons,
+    Emote,
+    Maps,
+    MonkeyInfo,
+    Monkeys,
+    Result,
+)
+
+EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
 
 class Play:
@@ -63,6 +75,7 @@ class UpgradeMonkey(Play):
                 done = False
         return done
 
+
 class Brain:
     def __init__(self, context: API):
         self.round_num = 0
@@ -113,6 +126,59 @@ class Brain:
             if b.kind in filter:
                 ret.append(b)
         return ret
+
+    def prioritise_bloon(self, monkey: MonkeyInfo) -> list[str]:
+        match monkey.kind, min(monkey.top_level, 3), min(monkey.bottom_level, 3):
+            case Monkeys.DART_MONKEY, 3, _:
+                return [GeneralMonkey.TARGET_MODE_LAST_BLOON]
+            case Monkeys.NINJA_MONKEY, _, _:
+                return [
+                    GeneralMonkey.TARGET_MODE_CAMO_BLOONS,
+                    GeneralMonkey.TARGET_MODE_FIRST_BLOON,
+                ]
+            case Monkeys.SUPER_MONKEY, _, _:
+                return [GeneralMonkey.TARGET_MODE_STRONGEST_BLOON]
+            case Monkeys.BOMB_TOWER, _, _:
+                return [
+                    GeneralMonkey.TARGET_MODE_LEAD_BLOONS,
+                    GeneralMonkey.TARGET_MODE_FIRST_BLOON,
+                ]
+            case Monkeys.SNIPER_MONKEY, _, _:
+                return [GeneralMonkey.TARGET_MODE_STRONGEST_BLOON]
+            case _:
+                return [GeneralMonkey.TARGET_MODE_FIRST_BLOON]
+
+    def get_should_attack(self) -> bool:
+        return self.context.get_money() >= 2750 and self.get_current_round() >= 16
+
+    # def get_possible_attacks(self):
+    #     raise NotImplementedError
+
+    # def handle_monkey_placement_and_upgrades():
+    #     raise NotImplementedError
+
+    def handle_monkey_targets(self) -> None:
+        """
+        Basic monkey targeting handling.
+        Picks the first visible target for each monkey.
+        """
+        for monkey in self.our_monkeys:
+            # Target Bloons
+            monkey.target_next()
+
+    def handle_emotes(self) -> None:
+        """
+        Basic emote handling.
+        Shows one of the cool emotes every second.
+        """
+        # if self.context.get_current_time() % 1 == 0:
+        #     self.context.display_emote(EMOTES[self.emote_index])
+        #     self.emote_index = (self.emote_index + 1) % len(EMOTES)
+
+    def handle_econ(self) -> None:
+        """
+        Econ handling.
+        """
 
 
 class GeneralMonkey:
@@ -222,3 +288,18 @@ class GeneralMonkey:
 
     def __str__(self) -> str:
         return f"Monkey number {self.monkey_index} | targets {self.target_modes}"
+
+
+class MyBot(ArazimWarsBot):
+    def setup(self) -> None:
+        self.brain = Brain(self.context)
+        self.monkey_count = 0
+        self.monkey_levels: list[int] = []
+        self.monkeys: list[GeneralMonkey] = []
+        self.emote_index = 0
+
+    def run(self) -> None:
+        # self.brain.handle_monkey_placement_and_upgrades()
+        self.brain.handle_monkey_targets()
+        # self.brain.handle_emotes()
+        # self.brain.handle_econ()
