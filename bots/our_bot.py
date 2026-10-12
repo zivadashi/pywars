@@ -1,4 +1,5 @@
-import api
+# import api
+
 from api import (
     API,
     ArazimWarsBot,
@@ -209,6 +210,9 @@ class Brain:
         """
         Econ handling.
         """
+
+    def handle_monkey_placement_and_upgrades(self):
+        self.minimal_defend()
 
 
 class GeneralMonkey:
