@@ -337,3 +337,28 @@ class MyBot(ArazimWarsBot):
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
         # self.brain.handle_econ()
+
+ROUND_INF=100
+
+BANANZA_TEMPLE_PLAYS = [
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (365, 175)),
+    UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (313, 161)),
+    UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (33,165)),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (348, 262)),
+    UpgradeMonkey(range(ROUND_INF), 0, 3, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (451, 123)),
+    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (238, 390)),
+    UpgradeMonkey(range(ROUND_INF), 0, 5, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (249, 194)),
+    UpgradeMonkey(range(ROUND_INF), 0, 6, [1, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 217)),
+    UpgradeMonkey(range(ROUND_INF), 0, 7, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 271)),
+    UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 323)),
+    UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
+]
