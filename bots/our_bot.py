@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from api import (
     API,
     ArazimWarsBot,
@@ -23,7 +21,7 @@ class Play:
         self.round_range = round_range
         self.minimal_price = minimal_balance
 
-    def do_play(self, curr_round: int, curr_balance: int, brain: Brain) -> bool:
+    def do_play(self, curr_round: int, curr_balance: int, context: API) -> bool:
         """runs the play if needed and allowed"""
         if self.did_it:
             return False
@@ -31,10 +29,10 @@ class Play:
             return False
         if curr_balance < self.minimal_price:
             return False
-        self.did_it = self.run(brain)
+        self.did_it = self.run(context)
         return True
 
-    def run(self, brain: Brain) -> bool:
+    def run(self, context: API) -> bool:
         return False
 
 
@@ -52,8 +50,8 @@ class PlaceMonkey(Play):
         self.kind = kind
         self.position = position
 
-    def run(self, brain: Brain) -> bool:
-        return brain.place_monkey(self.kind, self.position)
+    def run(self, context:API) -> bool:
+        return context.place_monkey(self.kind, self.position) == Result.OK
 
 
 class UpgradeMonkey(Play):
@@ -66,11 +64,11 @@ class UpgradeMonkey(Play):
         self.idx = idx
         self.wanted_rows = wanted_rows
 
-    def run(self, brain: Brain) -> bool:
+    def run(self, context: API) -> bool:
         done = True
         for i in range(2):
             if self.wanted_rows[i] != 0:
-                if brain.context.upgrade_monkey(self.idx, i == 0):
+                if context.upgrade_monkey(self.idx, i == 0):
                     self.wanted_rows[i] -= 1
                 done = False
         return done
@@ -94,7 +92,7 @@ class Brain:
         """sequentially tries to run all plays"""
         self.get_current_round()
         for p in plays:
-            if p.do_play(self.round_num, self.context.get_money(), self):
+            if p.do_play(self.round_num, self.context.get_money(), self.context):
                 return
 
     # def minimal_defend(self) -> None:
