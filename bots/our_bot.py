@@ -1,5 +1,16 @@
+"""from api import (
+    API,
+    ArazimWarsBot,
+    BloonInfo,
+    Bloons,
+    Emote,
+    Maps,
+    MonkeyInfo,
+    Monkeys,
+    Result,
+)
+"""
 import api
-
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
 
