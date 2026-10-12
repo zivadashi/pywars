@@ -1,93 +1,111 @@
-from api import API, BloonInfo, Bloons, Result,Maps,Monkeys
+from __future__ import annotations
+
+from api import API, BloonInfo, Bloons, Maps, Monkeys, Result
+
 
 class Play:
     """abstraction of 1 play - a purchase&placement, upgrade etc"""
-    def __init__(self,round_range: range,minimal_balance: int)->None:
+
+    def __init__(self, round_range: range, minimal_balance: int) -> None:
         self.did_it = False
         self.round_range = round_range
         self.minimal_price = minimal_balance
-    
-    def do_play(self,curr_round:int,curr_balance: int,brain:Brain) -> bool:
+
+    def do_play(self, curr_round: int, curr_balance: int, brain: Brain) -> bool:
         """runs the play if needed and allowed"""
         if self.did_it:
             return False
         if curr_round not in self.round_range:
             return False
-        if curr_balance< self.minimal_price:
+        if curr_balance < self.minimal_price:
             return False
-        self.did_it = self.run()
+        self.did_it = self.run(brain)
         return True
-    
-    def run(self,brain:Brain)->None:
+
+    def run(self, brain: Brain) -> bool:
         return False
 
+
 class PlaceMonkey(Play):
-    def __init__(self,round_range: range,minimal_balance: int,kind:Monkeys, position: tuple[float, float])->None:
+    def __init__(
+        self,
+        round_range: range,
+        minimal_balance: int,
+        kind: Monkeys,
+        position: tuple[float, float],
+    ) -> None:
         self.did_it = False
         self.round_range = round_range
         self.minimal_balance = minimal_balance
         self.kind = kind
         self.position = position
-    
-    def run(self,brain:Brain):
-        return brain.place_monkey(self.kind,self.position)
+
+    def run(self, brain: Brain) -> bool:
+        return brain.place_monkey(self.kind, self.position)
+
 
 class UpgradeMonkey(Play):
-    def __init__(self,round_range: range,minimal_balance: int,idx:int,wanted_rows:list[int])->None:
+    def __init__(
+        self, round_range: range, minimal_balance: int, idx: int, wanted_rows: list[int]
+    ) -> None:
         self.did_it = False
         self.round_range = round_range
         self.minimal_balance = minimal_balance
         self.idx = idx
         self.wanted_rows = wanted_rows
 
-    def run(self,brain:Brain)->bool:
+    def run(self, brain: Brain) -> bool:
         done = True
         for i in range(2):
-            if self.wanted_rows[i]!=0:
-                if brain.context.upgrade_monkey(self.idx,i==0):
-                    self.wanted_rows[i]-=1
-                done=False
+            if self.wanted_rows[i] != 0:
+                if brain.context.upgrade_monkey(self.idx, i == 0):
+                    self.wanted_rows[i] -= 1
+                done = False
         return done
 
 class Brain:
-    def __init__(self,context:API):
+    def __init__(self, context: API):
         self.round_num = 0
-        self.our_monkeys = []
+        self.our_monkeys: list[GeneralMonkey] = []
         self.context = context
         self.round_times = self.context.get_round_times()
-    
+
     def get_current_round(self) -> int:
-        for i in range(len(self.round_times)-self.round_num):
-            if self.round_times[self.round_num+i] <= self.context.get_current_time():
+        for i in range(len(self.round_times) - self.round_num):
+            if self.round_times[self.round_num + i] <= self.context.get_current_time():
                 self.round_num = i
                 return i
         return i
-    
-    def sequential_play(self,plays:list[Play]):
+
+    def sequential_play(self, plays: list[Play]) -> None:
         """sequentially tries to run all plays"""
         self.get_current_round()
         for p in plays:
-            if p.do_play(self.round_num,self.context.get_money(),self):
+            if p.do_play(self.round_num, self.context.get_money(), self):
                 return
 
-    
-    def minimal_defend(self)->None:
+    def minimal_defend(self) -> None:
         self.get_current_round()
-        if round >= 14:
+        if self.round_num >= 14:
             return
         if self.context.get_map() == Maps.INTERCHANGE:
-            self.sequential_play([PlaceMonkey(range(3),0,Monkeys.DART_MONKEY,(197,286)),UpgradeMonkey(range(3),0,0,[3,0])])
-        elif self.context.get_map == Maps.SHAPES:
-            self.sequential_play()
-        
+            self.sequential_play(
+                [
+                    PlaceMonkey(range(3), 0, Monkeys.DART_MONKEY, (197, 286)),
+                    UpgradeMonkey(range(3), 0, 0, [3, 0]),
+                ]
+            )
+        elif self.context.get_map() == Maps.SHAPES:
+            self.sequential_play([])
+
     def place_monkey(self, kind: Monkeys, position: tuple[float, float]) -> bool:
-        if self.context.place_monkey(kind,position) == Result.OK:
-            self.our_monkeys.append(GeneralMonkey(len(self.our_monkeys),self.context))
+        if self.context.place_monkey(kind, position) == Result.OK:
+            self.our_monkeys.append(GeneralMonkey(len(self.our_monkeys), self.context))
             return True
         return False
 
     @staticmethod
-    def get_filtered_bloons(filter: list[Bloons],api) -> list[BloonInfo]:
+    def get_filtered_bloons(filter: list[Bloons], api: API) -> list[BloonInfo]:
         """gets a list of bloon types to get, and returns the types it found in the existing map"""
         ret = []
         bloons = api.get_bloons()
@@ -95,7 +113,6 @@ class Brain:
             if b.kind in filter:
                 ret.append(b)
         return ret
-    
 
 
 class GeneralMonkey:
@@ -106,7 +123,7 @@ class GeneralMonkey:
     TARGET_MODE_STRONGEST_BLOON = "strongest_bloon_targeting"
     TARGET_MODE_STRONGEST_NON_MOAB_BLOON = "strongest_non_moab_bloon_targeting"
 
-    def __init__(self, monkey_index: int,context: API) -> None:
+    def __init__(self, monkey_index: int, context: API) -> None:
         """Initializing consts and targetings"""
         self.TARGETS = [
             self.TARGET_MODE_LAST_BLOON,
@@ -121,6 +138,7 @@ class GeneralMonkey:
         self.monkey_index = monkey_index
         self.target = None
         self.context = context
+
     def max_target_idx(self, bloons: list[BloonInfo]) -> int:
         """get the strongest bloon index from a list of bloons"""
         strongest_kind = max(bloon.kind.value for bloon in bloons)
@@ -174,9 +192,13 @@ class GeneralMonkey:
 
                 # filtered targeting section
                 case self.TARGET_MODE_LEAD_BLOONS:
-                    filtered_bloons = Brain.get_filtered_bloons([Bloons.LEAD],self.context)
+                    filtered_bloons = Brain.get_filtered_bloons(
+                        [Bloons.LEAD], self.context
+                    )
                 case self.TARGET_MODE_CAMO_BLOONS:
-                    filtered_bloons = Brain.get_filtered_bloons([Bloons.CAMO],self.context)
+                    filtered_bloons = Brain.get_filtered_bloons(
+                        [Bloons.CAMO], self.context
+                    )
 
             for bloon in filtered_bloons:
                 if (
