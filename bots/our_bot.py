@@ -1,4 +1,5 @@
-# import api
+import api
+
 
 from api import (
     API,
@@ -12,6 +13,7 @@ from api import (
     Result,
 )
 
+
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
 
@@ -21,21 +23,21 @@ class Play:
     def __init__(self, round_range: range, minimal_balance: int) -> None:
         self.did_it = False
         self.round_range = round_range
-        self.minimal_price = minimal_balance
+        self.minimal_balance = minimal_balance
 
-    def do_play(self, curr_round: int, curr_balance: int, context: API) -> bool:
+    def do_play(self, curr_round: int, curr_balance: int, context: API) -> Mo:
         """runs the play if needed and allowed"""
         if self.did_it:
             return False
         if curr_round not in self.round_range:
             return False
-        if curr_balance < self.minimal_price:
+        if curr_balance < self.minimal_balance:
             return False
         self.did_it = self.run(context)
         return True
 
-    def run(self, context: API) -> bool:
-        return False
+    def run(self, context: API) -> Result:
+        raise NotImplementedError
 
 
 class PlaceMonkey(Play):
@@ -52,8 +54,8 @@ class PlaceMonkey(Play):
         self.kind = kind
         self.position = position
 
-    def run(self, context: API) -> bool:
-        return context.place_monkey(self.kind, self.position) == Result.OK
+    def run(self, context: API) -> Result:
+        return context.place_monkey(self.kind, self.position)
 
 
 class UpgradeMonkey(Play):
@@ -66,13 +68,13 @@ class UpgradeMonkey(Play):
         self.idx = idx
         self.wanted_rows = wanted_rows
 
-    def run(self, context: API) -> bool:
-        done = True
+    def run(self, context: API) -> Result:
+        done = Result.OK
         for i in range(2):
             if self.wanted_rows[i] != 0:
-                if context.upgrade_monkey(self.idx, i == 0):
+                if not (res := context.upgrade_monkey(self.idx, i == 0)):
                     self.wanted_rows[i] -= 1
-                done = False
+                done = Result(max(done.value, res.value))
         return done
 
 
@@ -94,7 +96,15 @@ class Brain:
         """sequentially tries to run all plays"""
         self.get_current_round()
         for p in plays:
-            if p.do_play(self.round_num, self.context.get_money(), self.context):
+            if (
+                res := p.do_play(self.round_num, self.context.get_money(), self.context)
+                is Result.OK
+            ) and isinstance(p, PlaceMonkey):
+                self.our_monkeys.append(
+                    GeneralMonkey(len(self.our_monkeys), self.context)
+                )
+                return
+            elif res is Result.NOT_ENOUGH_MONEY:
                 return
 
     def place_monkey(self, kind: Monkeys, position: tuple[float, float]) -> bool:
@@ -143,50 +153,20 @@ class Brain:
     # def handle_monkey_placement_and_upgrades():
     #     raise NotImplementedError
 
-    def minimal_defend(self):
-        match self.context.get_map:
+    def minimal_defend(self) -> None:
+        match self.context.get_map():
             case Maps.TEMPLE:
-                self.sequential_play(
-                    [
-                        PlaceMonkey(range(3), 0, Monkeys.DART_MONKEY, (477, 111)),
-                        UpgradeMonkey(range(3), 0, 0, [3, 0]),
-                    ]
-                )
-                self.sequential_play(
-                    [
-                        PlaceMonkey(range(2, 4)),
-                        0,
-                        Monkeys.DART_MONKEY,
-                        (448, 116),
-                        UpgradeMonkey(range(2, 5), 0, 1, [3, 0]),
-                    ]
-                )
-                self.sequential_play(
-                    [
-                        PlaceMonkey(range(2, 7), 0, Monkeys.DART_MONKEY, (342, 258)),
-                        UpgradeMonkey(range(2, 8), 0, 2, [2, 3]),
-                    ]
-                )
-                self.sequential_play(
-                    [
-                        PlaceMonkey(range(2, 10), 0, Monkeys.SNIPER_MONKEY, (454, 615)),
-                        UpgradeMonkey(range(2, 11), 0, 0, [3, 0]),
-                    ]
-                )
-                # #I want the above thing to be done 100% before round 9
-                # Upgrade monkey (4) to (1,2)
-                self.sequential_play(
-                    [
-                        PlaceMonkey(range(2, 11), 0, Monkeys.DART_MONKEY, (56, 554)),
-                        UpgradeMonkey(range(2, 11), 0, 0, [3, 0]),
-                    ]
-                )
-                self.sequential_play(
-                    [
-                        PlaceMonkey(range(2, 12), 0, Monkeys.DART_MONKEY, (49, 502)),
-                        UpgradeMonkey(range(2, 12), 0, 0, [3, 0]),
-                    ]
-                )
+                # self.sequential_play(TEMPLE_LIST)
+                raise NotImplementedError
+            case Maps.INTERCHANGE:
+                # self.sequential_play(INTERCHANGE_LIST)
+                raise NotImplementedError
+            case Maps.SHAPES:
+                # self.sequential_play(SHAPES_LIST)
+                raise NotImplementedError
+            case Maps.YELLOW_BRICK:
+                # self.sequential_play(YELLOW_BRICK_LIST)
+                raise NotImplementedError
 
     def handle_monkey_targets(self) -> None:
         """
@@ -211,7 +191,7 @@ class Brain:
         Econ handling.
         """
 
-    def handle_monkey_placement_and_upgrades(self):
+    def handle_monkey_placement_and_upgrades(self) -> None:
         self.minimal_defend()
 
 
