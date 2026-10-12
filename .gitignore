@@ -219,3 +219,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 bin
+
+#my
+.gitignore
+.vscode
+pyvenv.cfg
