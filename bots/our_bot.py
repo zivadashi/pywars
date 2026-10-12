@@ -4,6 +4,7 @@ from api import (
     BloonInfo,
     Bloons,
     Emote,
+    Maps,
     MonkeyInfo,
     Monkeys,
     Result,
@@ -55,6 +56,51 @@ class Brain:
 
     # def handle_monkey_placement_and_upgrades():
     #     raise NotImplementedError
+
+    def minimal_defend(self):
+        match self.context.get_map:
+            case Maps.TEMPLE:
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(3), 0, Monkeys.DART_MONKEY, (477, 111)),
+                        UpgradeMonkey(range(3), 0, 0, [3, 0]),
+                    ]
+                )
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 4)),
+                        0,
+                        Monkeys.DART_MONKEY,
+                        (448, 116),
+                        UpgradeMonkey(range(2, 5), 0, 1, [3, 0]),
+                    ]
+                )
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 7), 0, Monkeys.DART_MONKEY, (342, 258)),
+                        UpgradeMonkey(range(2, 8), 0, 2, [2, 3]),
+                    ]
+                )
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 10), 0, Monkeys.SNIPER_MONKEY, (454, 615)),
+                        UpgradeMonkey(range(2, 11), 0, 0, [3, 0]),
+                    ]
+                )
+                # #I want the above thing to be done 100% before round 9
+                # Upgrade monkey (4) to (1,2)
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 11), 0, Monkeys.DART_MONKEY, (56, 554)),
+                        UpgradeMonkey(range(2, 11), 0, 0, [3, 0]),
+                    ]
+                )
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 12), 0, Monkeys.DART_MONKEY, (49, 502)),
+                        UpgradeMonkey(range(2, 12), 0, 0, [3, 0]),
+                    ]
+                )
 
     def handle_monkey_targets(self) -> None:
         """
