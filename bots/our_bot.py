@@ -1,4 +1,4 @@
-from api import API, BloonInfo, Bloons, Result
+from api import API, BloonInfo, Bloons, MonkeyInfo, Monkeys, Result
 
 
 class Brain:
@@ -11,6 +11,27 @@ class Brain:
             if b.kind in filter:
                 ret.append(b)
         return ret
+
+    def prioritise_bloon(self, monkey: MonkeyInfo) -> list[str]:
+        match monkey.kind, min(monkey.top_level, 3), min(monkey.bottom_level, 3):
+            case Monkeys.DART_MONKEY, 3, _:
+                return [GeneralMonkey.TARGET_MODE_LAST_BLOON]
+            case Monkeys.NINJA_MONKEY, _, _:
+                return [
+                    GeneralMonkey.TARGET_MODE_CAMO_BLOONS,
+                    GeneralMonkey.TARGET_MODE_FIRST_BLOON,
+                ]
+            case Monkeys.SUPER_MONKEY, _, _:
+                return [GeneralMonkey.TARGET_MODE_STRONGEST_BLOON]
+            case Monkeys.BOMB_TOWER, _, _:
+                return [
+                    GeneralMonkey.TARGET_MODE_LEAD_BLOONS,
+                    GeneralMonkey.TARGET_MODE_FIRST_BLOON,
+                ]
+            case Monkeys.SNIPER_MONKEY, _, _:
+                return [GeneralMonkey.TARGET_MODE_STRONGEST_BLOON]
+            case _:
+                return [GeneralMonkey.TARGET_MODE_FIRST_BLOON]
 
 
 class GeneralMonkey:
