@@ -6,6 +6,7 @@ from api import (
     ArazimWarsBot,
     BloonInfo,
     Bloons,
+    EcoBloons,
     Emote,
     Maps,
     MonkeyInfo,
@@ -144,8 +145,6 @@ class Brain:
             case _:
                 return [GeneralMonkey.TARGET_MODE_FIRST_BLOON]
 
-    def get_should_attack(self) -> bool:
-        return self.context.get_money() >= 2750 and self.get_current_round() >= 16
 
     # def get_possible_attacks(self):
     #     raise NotImplementedError
@@ -185,6 +184,20 @@ class Brain:
         # if self.context.get_current_time() % 1 == 0:
         #     self.context.display_emote(EMOTES[self.emote_index])
         #     self.emote_index = (self.emote_index + 1) % len(EMOTES)
+    def get_minimal_money(self) -> int:
+        self.get_current_round()
+        if self.round_num <6:
+            return 0
+        if self.round_num <8:
+            return 200
+        if self.round_num <6:
+            return 500
+        if self.round_num <10:
+            return 500
+        if self.round_num <12:
+            return 700
+        return 1000
+
 
     def handle_econ(self) -> None:
         """
@@ -262,7 +275,7 @@ class GeneralMonkey:
                     bloons = [
                         bloon
                         for bloon in self.context.get_bloons()
-                        if bloon.kind.value < Bloons.MOAB.value
+                        if bloon.kind.value < EcoBloons.MOAB.value
                     ]
                     if not len(bloons):
                         return Result.INVALID_BLOON_INDEX
@@ -316,4 +329,4 @@ class MyBot(ArazimWarsBot):
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
-        # self.brain.handle_econ()
+        self.brain.handle_econ()
