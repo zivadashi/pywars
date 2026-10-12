@@ -13,11 +13,14 @@ EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
 
 class Brain:
-    @staticmethod
-    def get_filtered_bloons(filter: list[Bloons]) -> list[BloonInfo]:
+    def __init__(self, context: API):
+        self.context = context
+        self.gen_monkeys: list[GeneralMonkey] = []
+
+    def get_filtered_bloons(self, filter: list[Bloons]) -> list[BloonInfo]:
         """gets a list of bloon types to get, and returns the types it found in the existing map"""
         ret = []
-        bloons = API().get_bloons()
+        bloons = self.context.get_bloons()
         for b in bloons:
             if b.kind in filter:
                 ret.append(b)
@@ -44,6 +47,38 @@ class Brain:
             case _:
                 return [GeneralMonkey.TARGET_MODE_FIRST_BLOON]
 
+    def get_should_attack(self):
+        return self.context.get_money() >= 2750 and self.get_current_round() >= 16
+
+    # def get_possible_attacks(self):
+    #     raise NotImplementedError
+
+    # def handle_monkey_placement_and_upgrades():
+    #     raise NotImplementedError
+
+    def handle_monkey_targets(self) -> None:
+        """
+        Basic monkey targeting handling.
+        Picks the first visible target for each monkey.
+        """
+        for monkey in self.gen_monkeys:
+            # Target Bloons
+            monkey.target_next()
+
+    def handle_emotes(self) -> None:
+        """
+        Basic emote handling.
+        Shows one of the cool emotes every second.
+        """
+        # if self.context.get_current_time() % 1 == 0:
+        #     self.context.display_emote(EMOTES[self.emote_index])
+        #     self.emote_index = (self.emote_index + 1) % len(EMOTES)
+
+    def handle_econ(self) -> None:
+        """
+        Econ handling.
+        """
+
 
 class GeneralMonkey:
     TARGET_MODE_LAST_BLOON = "last_bloon_targeting"
@@ -53,8 +88,9 @@ class GeneralMonkey:
     TARGET_MODE_STRONGEST_BLOON = "strongest_bloon_targeting"
     TARGET_MODE_STRONGEST_NON_MOAB_BLOON = "strongest_non_moab_bloon_targeting"
 
-    def __init__(self, monkey_index: int, target_modes: str) -> None:
+    def __init__(self, brain: Brain, monkey_index: int, target_modes: str) -> None:
         """Initializing consts and targetings"""
+        self.brain = brain
         self.TARGETS = [
             self.TARGET_MODE_LAST_BLOON,
             self.TARGET_MODE_FIRST_BLOON,
@@ -83,8 +119,8 @@ class GeneralMonkey:
             match curr_target:
                 case self.TARGET_MODE_LAST_BLOON:
                     if (
-                        API().target_bloon(
-                            self.monkey_index, len(API().get_bloons()) - 1
+                        self.brain.context.target_bloon(
+                            self.monkey_index, len(self.brain.context.get_bloons()) - 1
                         )
                         in self.TARGETING_ERRORS
                     ):
@@ -93,7 +129,7 @@ class GeneralMonkey:
 
                 case self.TARGET_MODE_FIRST_BLOON:
                     if (
-                        API().target_bloon(self.monkey_index, 0)
+                        self.brain.context.target_bloon(self.monkey_index, 0)
                         in self.TARGETING_ERRORS
                     ):
                         continue
@@ -101,33 +137,33 @@ class GeneralMonkey:
 
                 # strongest bloon
                 case self.TARGET_MODE_STRONGEST_BLOON:
-                    bloons = API().get_bloons()
+                    bloons = self.brain.context.get_bloons()
                     if not len(bloons):
                         return Result.INVALID_BLOON_INDEX
-                    return API().target_bloon(
+                    return self.brain.context.target_bloon(
                         self.monkey_index, self.max_target_idx(bloons)
                     )
                 case self.TARGET_MODE_STRONGEST_NON_MOAB_BLOON:
                     bloons = [
                         bloon
-                        for bloon in API().get_bloons()
+                        for bloon in self.brain.context.get_bloons()
                         if bloon.kind.value < Bloons.MOAB.value
                     ]
                     if not len(bloons):
                         return Result.INVALID_BLOON_INDEX
-                    return API().target_bloon(
+                    return self.brain.context.target_bloon(
                         self.monkey_index, self.max_target_idx(bloons)
                     )
 
                 # filtered targeting section
                 case self.TARGET_MODE_LEAD_BLOONS:
-                    filtered_bloons = Brain.get_filtered_bloons([Bloons.LEAD])
+                    filtered_bloons = self.brain.get_filtered_bloons([Bloons.LEAD])
                 case self.TARGET_MODE_CAMO_BLOONS:
-                    filtered_bloons = Brain.get_filtered_bloons([Bloons.CAMO])
+                    filtered_bloons = self.brain.get_filtered_bloons([Bloons.CAMO])
 
             for bloon in filtered_bloons:
                 if (
-                    API().target_bloon(self.monkey_index, bloon.index)
+                    self.brain.context.target_bloon(self.monkey_index, bloon.index)
                     in self.TARGETING_ERRORS
                 ):
                     continue
@@ -151,49 +187,14 @@ class GeneralMonkey:
 
 class MyBot(ArazimWarsBot):
     def setup(self) -> None:
+        self.brain = Brain(self.context)
         self.monkey_count = 0
         self.monkey_levels: list[int] = []
         self.monkeys: list[GeneralMonkey] = []
         self.emote_index = 0
 
     def run(self) -> None:
-        self.handle_monkey_placement_and_upgrades()
-        self.handle_monkey_targets()
-        self.handle_emotes()
-        self.handle_econ()
-
-    def prioritize_balloons(monkey: MonkeyInfo):
-        raise NotImplementedError
-
-    def get_should_attack():
-        return self.context.money
-
-    def handle_monkey_placement_and_upgrades():
-        raise NotImplementedError
-
-    def handle_monkey_targets(self) -> None:
-        """
-        Basic monkey targeting handling.
-        Picks the first visible target for each monkey.
-        """
-        for monkey_index in range(self.monkey_count):
-            # Target Bloons
-            type = self.context.get_player_monkeys(monkey_index)
-            targets = self.prioritize_balloons(type)
-            if len(targets) > 0:
-                self.context.target_bloon(monkey_index, targets[0].index)
-
-    def handle_emotes(self) -> None:
-        """
-        Basic emote handling.
-        Shows one of the cool emotes every second.
-        """
-
-        if self.context.get_current_time() % 1 == 0:
-            self.context.display_emote(EMOTES[self.emote_index])
-            self.emote_index = (self.emote_index + 1) % len(EMOTES)
-
-    def handle_econ(self) -> None:
-        """
-        Econ handling.
-        """
+        # self.brain.handle_monkey_placement_and_upgrades()
+        self.brain.handle_monkey_targets()
+        # self.brain.handle_emotes()
+        # self.brain.handle_econ()
