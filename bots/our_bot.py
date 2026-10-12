@@ -1,4 +1,6 @@
-from api import API, BloonInfo, Bloons, Result
+from api import API, ArazimWarsBot, BloonInfo, Bloons, Emote, MonkeyInfo, Result
+
+EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
 
 class Brain:
@@ -115,3 +117,53 @@ class GeneralMonkey:
 
     def __str__(self) -> str:
         return f"Monkey number {self.monkey_index} | targets {self.target_modes}"
+
+class MyBot(ArazimWarsBot):
+    def setup(self) -> None:
+        self.monkey_count = 0
+        self.monkey_levels: list[int] = []
+        self.monkeys: list[GeneralMonkey] = []
+        self.emote_index = 0    
+
+    def run(self) -> None:
+        self.handle_monkey_placement_and_upgrades()
+        self.handle_monkey_targets()
+        self.handle_emotes()
+        self.handle_econ()
+
+    def prioritize_balloons(monkey:MonkeyInfo):
+        raise NotImplementedError
+ 
+    def get_should_attack():
+        return self.context.money
+
+    def handle_monkey_placement_and_upgrades():
+        raise NotImplementedError
+    
+    def handle_monkey_targets(self) -> None:
+        """
+        Basic monkey targeting handling.
+        Picks the first visible target for each monkey.
+        """
+        for monkey_index in range(self.monkey_count):
+            # Target Bloons
+            type = self.context.get_player_monkeys(monkey_index)
+            targets = self.prioritize_balloons(type)
+            if len(targets) > 0:
+                self.context.target_bloon(monkey_index, targets[0].index)
+
+    def handle_emotes(self) -> None:
+        """
+        Basic emote handling.
+        Shows one of the cool emotes every second.
+        """
+
+        if self.context.get_current_time() % 1 == 0:
+            self.context.display_emote(EMOTES[self.emote_index])
+            self.emote_index = (self.emote_index + 1) % len(EMOTES)
+
+    def handle_econ(self)->None:
+        """
+        Econ handling. 
+        """
+    
