@@ -256,7 +256,7 @@ class Brain:
         8:  EcoBloons.SPACED_WHITE, 9:  EcoBloons.SPACED_WHITE, 10:  EcoBloons.SPACED_LEAD,
         11:  EcoBloons.SPACED_LEAD, 12:  EcoBloons.SPACED_ZEBRA, 13:  EcoBloons.SPACED_ZEBRA
         }
-        if True:
+        if self.round_num<16 or self.get_should_attack(self.context.get_money(),self.round_num,self.context.get_player_count()):
             player_index = 0
             for player_index in range(8):
                 if self.context.is_player_active(player_index) and player_index != self.context.get_current_player_index():
@@ -273,8 +273,8 @@ class Brain:
                     BLOON_TYPE_BY_ROUND[self.round_num], 5)])
 
     
-    def get_should_attack(self,money: int, round: int, player_count: int)->bool: 
-        return (money >= 2750 and round >= 16 and player_count==2)
+    def get_should_attack(self,money: int, round_num: int, player_count: int)->bool: 
+        return (money >= 2750 and round_num >= 16 and player_count==2)
 
 
     def handle_monkey_placement_and_upgrades(self) -> None:
