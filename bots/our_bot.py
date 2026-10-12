@@ -1,4 +1,4 @@
-from __future__ import annotations
+# import api
 
 from api import (
     API,
@@ -12,6 +12,7 @@ from api import (
     Result,
 )
 
+ROUND_INF = 100
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
 
@@ -23,7 +24,7 @@ class Play:
         self.round_range = round_range
         self.minimal_price = minimal_balance
 
-    def do_play(self, curr_round: int, curr_balance: int, brain: Brain) -> bool:
+    def do_play(self, curr_round: int, curr_balance: int, context: API) -> bool:
         """runs the play if needed and allowed"""
         if self.did_it:
             return False
@@ -31,10 +32,10 @@ class Play:
             return False
         if curr_balance < self.minimal_price:
             return False
-        self.did_it = self.run(brain)
+        self.did_it = self.run(context)
         return True
 
-    def run(self, brain: Brain) -> bool:
+    def run(self, context: API) -> bool:
         return False
 
 
@@ -46,31 +47,51 @@ class PlaceMonkey(Play):
         kind: Monkeys,
         position: tuple[float, float],
     ) -> None:
+        """
+        Args:
+            did_it: did the action
+            round_range: range of rounds we want the play to happen in
+            minimal_balance: minimal balance needed to do the play
+            idx: monkey idx
+            wanted_rows: a len 2 array of the wanted upgrades and when to do them
+        """
         self.did_it = False
         self.round_range = round_range
         self.minimal_balance = minimal_balance
         self.kind = kind
         self.position = position
 
-    def run(self, brain: Brain) -> bool:
-        return brain.place_monkey(self.kind, self.position)
+    def run(self, context: API) -> bool:
+        return context.place_monkey(self.kind, self.position) == Result.OK
 
 
 class UpgradeMonkey(Play):
+    """
+    upgrade monkey play
+    """
+
     def __init__(
         self, round_range: range, minimal_balance: int, idx: int, wanted_rows: list[int]
     ) -> None:
+        """
+        Args:
+            did_it: did the action
+            round_range: range of rounds we want the play to happen in
+            minimal_balance: minimal balance needed to do the play
+            idx: monkey idx
+            wanted_rows: a len 2 array of the wanted upgrades and when to do them
+        """
         self.did_it = False
         self.round_range = round_range
         self.minimal_balance = minimal_balance
         self.idx = idx
         self.wanted_rows = wanted_rows
 
-    def run(self, brain: Brain) -> bool:
+    def run(self, context: API) -> bool:
         done = True
         for i in range(2):
             if self.wanted_rows[i] != 0:
-                if brain.context.upgrade_monkey(self.idx, i == 0):
+                if context.upgrade_monkey(self.idx, i == 0):
                     self.wanted_rows[i] -= 1
                 done = False
         return done
@@ -94,22 +115,8 @@ class Brain:
         """sequentially tries to run all plays"""
         self.get_current_round()
         for p in plays:
-            if p.do_play(self.round_num, self.context.get_money(), self):
+            if p.do_play(self.round_num, self.context.get_money(), self.context):
                 return
-
-    def minimal_defend(self) -> None:
-        self.get_current_round()
-        if self.round_num >= 14:
-            return
-        if self.context.get_map() == Maps.INTERCHANGE:
-            self.sequential_play(
-                [
-                    PlaceMonkey(range(3), 0, Monkeys.DART_MONKEY, (197, 286)),
-                    UpgradeMonkey(range(3), 0, 0, [3, 0]),
-                ]
-            )
-        elif self.context.get_map() == Maps.SHAPES:
-            self.sequential_play([])
 
     def place_monkey(self, kind: Monkeys, position: tuple[float, float]) -> bool:
         if self.context.place_monkey(kind, position) == Result.OK:
@@ -157,6 +164,51 @@ class Brain:
     # def handle_monkey_placement_and_upgrades():
     #     raise NotImplementedError
 
+    def minimal_defend(self):
+        match self.context.get_map:
+            case Maps.TEMPLE:
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(3), 0, Monkeys.DART_MONKEY, (477, 111)),
+                        UpgradeMonkey(range(3), 0, 0, [3, 0]),
+                    ]
+                )
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 4)),
+                        0,
+                        Monkeys.DART_MONKEY,
+                        (448, 116),
+                        UpgradeMonkey(range(2, 5), 0, 1, [3, 0]),
+                    ]
+                )
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 7), 0, Monkeys.DART_MONKEY, (342, 258)),
+                        UpgradeMonkey(range(2, 8), 0, 2, [2, 3]),
+                    ]
+                )
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 10), 0, Monkeys.SNIPER_MONKEY, (454, 615)),
+                        UpgradeMonkey(range(2, 11), 0, 0, [3, 0]),
+                    ]
+                )
+                # #I want the above thing to be done 100% before round 9
+                # Upgrade monkey (4) to (1,2)
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 11), 0, Monkeys.DART_MONKEY, (56, 554)),
+                        UpgradeMonkey(range(2, 11), 0, 0, [3, 0]),
+                    ]
+                )
+                self.sequential_play(
+                    [
+                        PlaceMonkey(range(2, 12), 0, Monkeys.DART_MONKEY, (49, 502)),
+                        UpgradeMonkey(range(2, 12), 0, 0, [3, 0]),
+                    ]
+                )
+
     def handle_monkey_targets(self) -> None:
         """
         Basic monkey targeting handling.
@@ -179,6 +231,9 @@ class Brain:
         """
         Econ handling.
         """
+
+    def handle_monkey_placement_and_upgrades(self):
+        self.minimal_defend()
 
 
 class GeneralMonkey:
@@ -299,7 +354,87 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
-        # self.brain.handle_monkey_placement_and_upgrades()
+        self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
         # self.brain.handle_econ()
+
+ROUND_INF=100
+
+STANDARD_TEMPLE_PLAYS = [
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (365, 175)),
+    UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (313, 161)),
+    UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (33,165)),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (348, 262)),
+    UpgradeMonkey(range(ROUND_INF), 0, 3, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (451, 123)),
+    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (238, 390)),
+    UpgradeMonkey(range(ROUND_INF), 0, 5, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (249, 194)),
+    UpgradeMonkey(range(ROUND_INF), 0, 6, [1, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 217)),
+    UpgradeMonkey(range(ROUND_INF), 0, 7, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 271)),
+    UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 323)),
+    UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
+]
+
+
+# idxs: Tack 0, Tack 1, Sniper 2
+# Ninja 3, Super 4, Ninja 5, Super 6, Sniper 7, Sniper 8, Sniper 9
+BANANZA_INTERCHANGE_PLAYS = [
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (234, 164)),
+    UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (271, 202)),
+    UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 26)),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (248, 361)),
+    UpgradeMonkey(range(ROUND_INF), 0, 3, [4, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (358, 301)),
+    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (249, 420)),
+    UpgradeMonkey(range(ROUND_INF), 0, 5, [4, 0]),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [2, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (167, 258)),
+    UpgradeMonkey(range(ROUND_INF), 0, 6, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 79)),
+    UpgradeMonkey(range(ROUND_INF), 0, 7, [3, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 140)),
+    UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 200)),
+    UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
+]
+BANANZA_YELLOWBRICK_PLAYS = [
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (347, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (454, 613)),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (202, 280)),
+    UpgradeMonkey(range(ROUND_INF), 0, 3, [4, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (314, 262)),
+    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (259, 304)),
+    UpgradeMonkey(range(ROUND_INF), 0, 5, [4, 0]),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [2, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (128, 284)),
+    UpgradeMonkey(range(ROUND_INF), 0, 6, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (400, 613)),
+    UpgradeMonkey(range(ROUND_INF), 0, 7, [3, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (397, 557)),
+    UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (453, 553)),
+    UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
+]
+PLAYS = {
+    Maps.INTERCHANGE: BANANZA_INTERCHANGE_PLAYS,
+    Maps.YELLOW_BRICK: BANANZA_YELLOWBRICK_PLAYS,
+    Maps.TEMPLE: BANANZA_INTERCHANGE_PLAYS
+}
