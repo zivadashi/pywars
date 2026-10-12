@@ -1,10 +1,9 @@
-# import api
-
 from api import (
     API,
     ArazimWarsBot,
     BloonInfo,
     Bloons,
+    EcoBloons,
     Emote,
     Maps,
     MonkeyInfo,
@@ -12,7 +11,7 @@ from api import (
     Result,
 )
 
-ROUND_INF = 100
+import api
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
 
@@ -38,7 +37,34 @@ class Play:
     def run(self, context: API) -> bool:
         return False
 
+class Attack(Play):
+    def __init__(self,
+        round_range:range,
+        minimal_balance:int,                       
+        player_index: int,
+        bloon: EcoBloons,
+        count: int,
+        is_camo: bool = False,
+        is_regen: bool = False,) -> None:
+        self.did_it = False
+        self.round_range = round_range
+        self.minimal_balance = minimal_balance
+        self.player_index = player_index
+        self.bloon = bloon
+        self.count = count
+        self.is_camo = is_camo
+        self.is_regen = is_regen
+    
 
+    def run(self, context: API) -> bool:
+        while self.count>0:
+            res = context.send_bloons(self.player_index,self.bloon,self.is_camo,self.is_regen)
+            if res == Result.ECO_QUEUE_FULL or res == Result.NOT_ENOUGH_MONEY or res == Result.TOO_EARLY:
+                return False
+            if res == Result.OK:
+                self.count-=1
+        return True
+    
 class PlaceMonkey(Play):
     def __init__(
         self,
@@ -47,40 +73,20 @@ class PlaceMonkey(Play):
         kind: Monkeys,
         position: tuple[float, float],
     ) -> None:
-        """
-        Args:
-            did_it: did the action
-            round_range: range of rounds we want the play to happen in
-            minimal_balance: minimal balance needed to do the play
-            idx: monkey idx
-            wanted_rows: a len 2 array of the wanted upgrades and when to do them
-        """
         self.did_it = False
         self.round_range = round_range
         self.minimal_balance = minimal_balance
         self.kind = kind
         self.position = position
 
-    def run(self, context: API) -> bool:
+    def run(self, context:API) -> bool:
         return context.place_monkey(self.kind, self.position) == Result.OK
 
 
 class UpgradeMonkey(Play):
-    """
-    upgrade monkey play
-    """
-
     def __init__(
         self, round_range: range, minimal_balance: int, idx: int, wanted_rows: list[int]
     ) -> None:
-        """
-        Args:
-            did_it: did the action
-            round_range: range of rounds we want the play to happen in
-            minimal_balance: minimal balance needed to do the play
-            idx: monkey idx
-            wanted_rows: a len 2 array of the wanted upgrades and when to do them
-        """
         self.did_it = False
         self.round_range = round_range
         self.minimal_balance = minimal_balance
@@ -117,6 +123,20 @@ class Brain:
         for p in plays:
             if p.do_play(self.round_num, self.context.get_money(), self.context):
                 return
+
+    # def minimal_defend(self) -> None:
+    #     self.get_current_round()
+    #     if self.round_num >= 14:
+    #         return
+    #     if self.context.get_map() == Maps.INTERCHANGE:
+    #         self.sequential_play(
+    #             [
+    #                 PlaceMonkey(range(3), 0, Monkeys.DART_MONKEY, (197, 286)),
+    #                 UpgradeMonkey(range(3), 0, 0, [3, 0]),
+    #             ]
+    #         )
+    #     elif self.context.get_map() == Maps.SHAPES:
+    #         self.sequential_play([])
 
     def place_monkey(self, kind: Monkeys, position: tuple[float, float]) -> bool:
         if self.context.place_monkey(kind, position) == Result.OK:
@@ -155,8 +175,6 @@ class Brain:
             case _:
                 return [GeneralMonkey.TARGET_MODE_FIRST_BLOON]
 
-    def get_should_attack(self) -> bool:
-        return self.context.get_money() >= 2750 and self.get_current_round() >= 16
 
     # def get_possible_attacks(self):
     #     raise NotImplementedError
@@ -164,7 +182,7 @@ class Brain:
     # def handle_monkey_placement_and_upgrades():
     #     raise NotImplementedError
 
-    def minimal_defend(self):
+    def minimal_defend(self) -> None:
         match self.context.get_map:
             case Maps.TEMPLE:
                 self.sequential_play(
@@ -226,13 +244,53 @@ class Brain:
         # if self.context.get_current_time() % 1 == 0:
         #     self.context.display_emote(EMOTES[self.emote_index])
         #     self.emote_index = (self.emote_index + 1) % len(EMOTES)
+    def get_minimal_money(self) -> int:
+        self.get_current_round()
+        if self.round_num <6:
+            return 0
+        if self.round_num <8:
+            return 200
+        if self.round_num <6:
+            return 500
+        if self.round_num <10:
+            return 500
+        if self.round_num <12:
+            return 700
+        return 1000
+
 
     def handle_econ(self) -> None:
         """
         Econ handling.
         """
+        BLOON_TYPE_BY_ROUND = {
+            2: EcoBloons.GROUPED_RED, 3:  EcoBloons.GROUPED_RED, 4:  EcoBloons.SPACED_PINK,
+        5:  EcoBloons.SPACED_PINK, 6:  EcoBloons.SPACED_PINK, 7:  EcoBloons.SPACED_PINK,
+        8:  EcoBloons.SPACED_WHITE, 9:  EcoBloons.SPACED_WHITE, 10:  EcoBloons.SPACED_LEAD,
+        11:  EcoBloons.SPACED_LEAD, 12:  EcoBloons.SPACED_ZEBRA, 13:  EcoBloons.SPACED_ZEBRA
+        }
+        if self.round_num<16 or self.get_should_attack(self.context.get_money(),self.round_num,self.context.get_player_count()):
+            player_index = 0
+            for player_index in range(8):
+                if self.context.is_player_active(player_index) and player_index != self.context.get_current_player_index():
+                    break
+            if player_index>=7:
+                return
+            self.sequential_play([Attack(range(self.round_num,self.round_num),self.get_minimal_money(), player_index, EcoBloons.GROUPED_RAINBOW,5,False, True)])
+            if self.round_num<2:
+                pass
+            if 2<=self.round_num<14:
+                self.sequential_play([Attack(range(self.round_num,self.round_num),
+                    self.get_minimal_money(),
+                                    player_index, 
+                    BLOON_TYPE_BY_ROUND[self.round_num], 5)])
 
-    def handle_monkey_placement_and_upgrades(self):
+    
+    def get_should_attack(self,money: int, round_num: int, player_count: int)->bool: 
+        return (money >= 2750 and round_num >= 16 and player_count==2)
+
+
+    def handle_monkey_placement_and_upgrades(self) -> None:
         self.minimal_defend()
 
 
@@ -303,7 +361,7 @@ class GeneralMonkey:
                     bloons = [
                         bloon
                         for bloon in self.context.get_bloons()
-                        if bloon.kind.value < Bloons.MOAB.value
+                        if bloon.kind.value < EcoBloons.MOAB.value
                     ]
                     if not len(bloons):
                         return Result.INVALID_BLOON_INDEX
@@ -354,87 +412,7 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
-        self.brain.handle_monkey_placement_and_upgrades()
+        # self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
-        # self.brain.handle_econ()
-
-ROUND_INF=100
-
-STANDARD_TEMPLE_PLAYS = [
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (365, 175)),
-    UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (313, 161)),
-    UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (33,165)),
-    UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (348, 262)),
-    UpgradeMonkey(range(ROUND_INF), 0, 3, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (451, 123)),
-    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (238, 390)),
-    UpgradeMonkey(range(ROUND_INF), 0, 5, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (249, 194)),
-    UpgradeMonkey(range(ROUND_INF), 0, 6, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 217)),
-    UpgradeMonkey(range(ROUND_INF), 0, 7, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 271)),
-    UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (32, 323)),
-    UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
-]
-
-
-# idxs: Tack 0, Tack 1, Sniper 2
-# Ninja 3, Super 4, Ninja 5, Super 6, Sniper 7, Sniper 8, Sniper 9
-BANANZA_INTERCHANGE_PLAYS = [
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (234, 164)),
-    UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (271, 202)),
-    UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 26)),
-    UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (248, 361)),
-    UpgradeMonkey(range(ROUND_INF), 0, 3, [4, 0]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (358, 301)),
-    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (249, 420)),
-    UpgradeMonkey(range(ROUND_INF), 0, 5, [4, 0]),
-    UpgradeMonkey(range(ROUND_INF), 0, 2, [2, 0]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (167, 258)),
-    UpgradeMonkey(range(ROUND_INF), 0, 6, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 79)),
-    UpgradeMonkey(range(ROUND_INF), 0, 7, [3, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 140)),
-    UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 200)),
-    UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
-]
-BANANZA_YELLOWBRICK_PLAYS = [
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (151, 199)),
-    UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (347, 199)),
-    UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (454, 613)),
-    UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (202, 280)),
-    UpgradeMonkey(range(ROUND_INF), 0, 3, [4, 0]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (314, 262)),
-    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (259, 304)),
-    UpgradeMonkey(range(ROUND_INF), 0, 5, [4, 0]),
-    UpgradeMonkey(range(ROUND_INF), 0, 2, [2, 0]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (128, 284)),
-    UpgradeMonkey(range(ROUND_INF), 0, 6, [2, 1]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (400, 613)),
-    UpgradeMonkey(range(ROUND_INF), 0, 7, [3, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (397, 557)),
-    UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (453, 553)),
-    UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
-]
-PLAYS = {
-    Maps.INTERCHANGE: BANANZA_INTERCHANGE_PLAYS,
-    Maps.YELLOW_BRICK: BANANZA_YELLOWBRICK_PLAYS,
-    Maps.TEMPLE: BANANZA_INTERCHANGE_PLAYS
-}
+        self.brain.handle_econ()
