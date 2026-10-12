@@ -1,4 +1,4 @@
-from api import API, BloonInfo, Bloons, Monkeys, MonkeyInfo, Result
+from api import API, BloonInfo, Bloons, MonkeyInfo, Monkeys, Result
 
 
 class Brain:
