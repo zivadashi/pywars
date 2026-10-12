@@ -4,6 +4,7 @@ from api import API, BloonInfo, Bloons, MonkeyInfo, Monkeys, Result
 class Brain:
     @staticmethod
     def get_filtered_bloons(filter: list[Bloons]) -> list[BloonInfo]:
+        """gets a list of bloon types to get, and returns the types it found in the existing map"""
         ret = []
         bloons = API().get_bloons()
         for b in bloons:
@@ -42,6 +43,7 @@ class GeneralMonkey:
     TARGET_MODE_STRONGEST_NON_MOAB_BLOON = "strongest_non_moab_bloon_targeting"
 
     def __init__(self, monkey_index: int, target_modes: str) -> None:
+        """Initializing consts and targetings"""
         self.TARGETS = [
             self.TARGET_MODE_LAST_BLOON,
             self.TARGET_MODE_FIRST_BLOON,
@@ -56,6 +58,7 @@ class GeneralMonkey:
         self.target = None
 
     def max_target_idx(self, bloons: list[BloonInfo]) -> int:
+        """get the strongest bloon index from a list of bloons"""
         strongest_kind = max(bloon.kind.value for bloon in bloons)
         return next(
             idx
@@ -64,6 +67,7 @@ class GeneralMonkey:
         )
 
     def target_next(self) -> Result:
+        """target the bloon for this tick, iterates the targeting options until one is valid"""
         for curr_target in self.target_modes:
             match curr_target:
                 case self.TARGET_MODE_LAST_BLOON:
@@ -121,6 +125,7 @@ class GeneralMonkey:
         return Result.INVALID_BLOON
 
     def retarget(self, new_mode: str, add_next: bool = False) -> bool:
+        """either appends as least priority or resets completley to new targeting list"""
         if new_mode in self.TARGETS:
             if add_next:
                 self.target_modes.append(new_mode)
