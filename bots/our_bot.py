@@ -227,6 +227,7 @@ class Brain:
         self.context = context
         self.round_times = self.context.get_round_times()
         self.sequence = self.get_sequence()
+        self.intersections: list[tuple] = self.get_interesting_points()
 
     def get_current_round(self) -> int:
         curr = self.context.get_current_steps()
@@ -288,9 +289,39 @@ class Brain:
 
     # def handle_monkey_placement_and_upgrades():
     #     raise NotImplementedError
+    @staticmethod
+    def get_deltas(x: int = 40) -> list[tuple[int]]:
+        return [(0, x), (x, 0), (0, -x), (-x, 0), (x, x), (x, -x), (-x, -x), (-x, x)]
 
-    def minimal_defend(self) -> None:
-        self.sequential_play(self.sequence)
+    def minimal_defend(self, intersections: list[tuple]) -> None:
+        deltas: list[tuple] = self.get_deltas(40)
+        suc = False
+        for inter in intersections:
+            for delta in deltas:
+                placement = PlaceMonkey(
+                    range(ROUND_INF),
+                    0,
+                    Monkeys.DART_MONKEY,
+                    (delta[0] + inter[0], delta[1] + inter[1]),
+                )
+                res = placement.do_play(
+                    self.round_num,
+                    self.context.get_money(),
+                    self.context,
+                    self.our_monkeys,
+                )
+                if res:
+                    self.our_monkeys.append(
+                        GeneralMonkey(len(self.our_monkeys), self.context)
+                    )
+                    UpgradeMonkey(range(ROUND_INF), 0, len(self.our_monkeys), [3, 2])
+                    suc = True
+                    break
+            if suc:
+                intersections.remove(inter)
+                break
+
+        # self.sequential_play(self.sequence)
 
     def handle_monkey_targets(self) -> None:
         """
@@ -340,7 +371,20 @@ class Brain:
         return sequence
 
     def handle_monkey_placement_and_upgrades(self) -> None:
-        self.minimal_defend()
+        self.minimal_defend(self.intersections)
+
+    def get_interesting_points(self) -> list[tuple]:
+        ret: list[tuple] = []
+        bloons: list[LineInfo] = self.context.get_bloon_route()
+        eco: list[LineInfo] = self.context.get_eco_bloon_route()
+        for line_seg in bloons:
+            if line_seg.hidden:
+                continue
+            end = line_seg.end
+            for seg in eco:
+                if seg.end == end:
+                    ret.append(end)
+        return ret
 
 
 class MyBot(ArazimWarsBot):

@@ -10,7 +10,9 @@ class MyBot(ArazimWarsBot):
         self.monkey_levels: list[int] = []
         self.attempted_position = 0
         self.emote_index = 0
-
+        self.context.log_info(f"Map: {self.context.get_bloon_route()}")
+        self.context.log_info(f"Eco route: {self.context.get_eco_bloon_route()}")
+        
     def run(self) -> None:
         self.handle_monkey_placement_and_upgrades()
         self.handle_monkey_targets()
