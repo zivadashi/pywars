@@ -205,6 +205,7 @@ class UpgradeMonkey(Play):
 class Brain:
     BLOON_VALUES: dict[Bloons, int] = {}
     TOWER_BOOST_THRESHOLD = 350
+    BLOON_BOOST_THRESHOLD = 100
 
     def __init__(self, context: API):
         self.round_num = 0
@@ -324,6 +325,25 @@ class Brain:
             if bloon.eco_from is not None
         )
 
+    def should_bloon_boost(self) -> bool:
+        my_idx = self.context.get_current_player_index()
+        tower_boost_time = self.context.get_player_remaining_tower_boost_time(
+            self.context.get_current_player_index()
+        )
+        if tower_boost_time:
+            return False
+        return (
+            sum(
+                sum(
+                    self.BLOON_VALUES.get(bloon.kind, bloon.kind.value)
+                    for bloon in self.context.get_player_bloons(player)
+                    if bloon.eco_from == my_idx
+                )
+                for player in range(self.context.get_player_count())
+            )
+            >= self.BLOON_BOOST_THRESHOLD
+        )
+
 
 class MyBot(ArazimWarsBot):
     def setup(self) -> None:
@@ -340,6 +360,8 @@ class MyBot(ArazimWarsBot):
         # self.brain.handle_econ()
         if self.brain.should_tower_boost():
             self.context.tower_boost()
+        if self.brain.should_bloon_boost():
+            self.context.bloon_boost()
 
 
 # idxs: Tack 0, Tack 1, Sniper 2
