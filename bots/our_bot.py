@@ -193,6 +193,44 @@ class PlaceMonkey(Play):
         return f"PM, kind: {self.kind}, pos: {self.position}"
 
 
+class Attack(Play):
+    def __init__(
+        self,
+        round_range: range,
+        minimal_balance: int,
+        player_index: int,
+        bloon: EcoBloons,
+        count: int,
+        is_camo: bool = False,
+        is_regen: bool = False,
+    ) -> None:
+        self.did_it = False
+        self.round_range = round_range
+        self.minimal_balance = minimal_balance
+        self.player_index = player_index
+        self.bloon = bloon
+        self.count = count
+        self.is_camo = is_camo
+        self.is_regen = is_regen
+
+    def run(
+        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
+    ) -> Result:
+        while self.count > 0:
+            res = context.send_bloons(
+                self.player_index, self.bloon, self.is_camo, self.is_regen
+            )
+            if (
+                res == Result.ECO_QUEUE_FULL
+                or res == Result.NOT_ENOUGH_MONEY
+                or res == Result.TOO_EARLY
+            ):
+                return Result.OK
+            if res == Result.OK:
+                self.count -= 1
+        return Result.OK
+
+
 class UpgradeMonkey(Play):
     """
     upgrade monkey play
