@@ -343,13 +343,13 @@ class Brain:
         if round_num <3:
             return 0
         if round_num <5:
-            return 500
+            return 1000
         if round_num <6:
-            return 800
+            return 1000
         if round_num <8:
-            return 800
+            return 1000
         if  round_num <12:
-            return 700
+            return 1000
         return 1000
 
 
