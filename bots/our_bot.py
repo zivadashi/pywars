@@ -529,7 +529,7 @@ class Brain:
                     for bloon in self.context.get_player_bloons(player)
                     if bloon.eco_from == my_idx
                 )
-                for player in range(self.context.get_player_count())
+                for player in [self.attacks[0].player_index]
             )
             >= self.BLOON_BOOST_THRESHOLD
         )
