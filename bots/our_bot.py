@@ -1,15 +1,15 @@
-from api import (
-    API,
-    ArazimWarsBot,
-    BloonInfo,
-    Bloons,
-    EcoBloons,
-    Emote,
-    Maps,
-    MonkeyInfo,
-    Monkeys,
-    Result,
-)
+# from api import (
+#     API,
+#     ArazimWarsBot,
+#     BloonInfo,
+#     Bloons,
+#     EcoBloons,
+#     Emote,
+#     Maps,
+#     MonkeyInfo,
+#     Monkeys,
+#     Result,
+# )
 
 ROUND_INF = 100
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
@@ -334,7 +334,6 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
-        self.context.log_info(f"round nums: {self.brain.get_current_round()}")
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
