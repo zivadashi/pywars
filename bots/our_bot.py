@@ -349,13 +349,13 @@ class Brain:
         if round_num < 3:
             return 0
         if round_num < 5:
-            return 1000
+            return 200
         if round_num < 6:
-            return 1000
+            return 300
         if round_num < 8:
-            return 1000
+            return 500
         if round_num < 12:
-            return 1000
+            return 0
         return 1000
 
     def handle_econ(self) -> None:
@@ -369,12 +369,12 @@ class Brain:
             5: EcoBloons.SPACED_PINK,
             6: EcoBloons.SPACED_PINK,
             7: EcoBloons.SPACED_PINK,
-            8: EcoBloons.SPACED_WHITE,
-            9: EcoBloons.SPACED_WHITE,
-            10: EcoBloons.SPACED_LEAD,
-            11: EcoBloons.SPACED_LEAD,
-            12: EcoBloons.SPACED_ZEBRA,
-            13: EcoBloons.SPACED_ZEBRA,
+            8: EcoBloons.SPACED_PINK,
+            9: EcoBloons.SPACED_PINK,
+            10: EcoBloons.GROUPED_GREEN,
+            11: EcoBloons.GROUPED_GREEN,
+            12: EcoBloons.SPACED_PINK,
+            13: EcoBloons.SPACED_PINK,
         }
         self.get_current_round()
         if self.attacks is None or (
@@ -419,12 +419,13 @@ class Brain:
         if self.round_num < 2:
             pass
         if 2 <= self.round_num < 14:
-            if self.context.get_current_steps() % 100 == 0:
-                self.context.log_info(
-                    f"round {self.round_num} | attack: {self.context.get_money()}"
-                )
             for p in attacks:
-                p.do_play(self.round_num, self.context.get_money(), self.context, None)
+                p.do_play(
+                    self.round_num,
+                    self.context.get_money(),
+                    self.context,
+                    our_monkeys=self.our_monkeys,
+                )
 
     def get_should_attack(self, money: int, round_num: int, player_count: int) -> bool:
         return money >= 2750 and round_num >= 16 and player_count == 2
@@ -519,11 +520,11 @@ RAND_PLAY = [
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.BOMB_TOWER, (314, 262)),
     UpgradeMonkey(range(ROUND_INF), 0, 4, [0, 0]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.BOMB_TOWER, (259, 304)),
-    UpgradeMonkey(range(ROUND_INF), 0, 5, [0, 0]),
+    UpgradeMonkey(range(ROUND_INF), 0, 5, [1, 1]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (128, 284)),
     UpgradeMonkey(range(ROUND_INF), 0, 6, [2, 1]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
-    UpgradeMonkey(range(ROUND_INF), 0, 7, [2, 3]),
+    UpgradeMonkey(range(ROUND_INF), 0, 7, [4, 2]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
     UpgradeMonkey(range(ROUND_INF), 0, 8, [2, 3]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
@@ -533,9 +534,15 @@ RAND_PLAY = [
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
     UpgradeMonkey(range(ROUND_INF), 0, 11, [2, 3]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
-    UpgradeMonkey(range(ROUND_INF), 0, 12, [2, 3]),
+    UpgradeMonkey(range(ROUND_INF), 0, 12, [4, 2]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
     UpgradeMonkey(range(ROUND_INF), 0, 13, [2, 3]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
     UpgradeMonkey(range(ROUND_INF), 0, 14, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 15, [4, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 16, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 17, [2, 3]),
 ]
