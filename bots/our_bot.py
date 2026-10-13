@@ -457,9 +457,11 @@ class Brain:
         Basic emote handling.
         Shows one of the cool emotes every second.
         """
-        # if self.context.get_current_time() % 1 == 0:
-        #     self.context.display_emote(EMOTES[self.emote_index])
-        #     self.emote_index = (self.emote_index + 1) % len(EMOTES)
+        me = self.context.get_current_player_index()
+        if self.context.get_player_remaining_bloon_boost_time(me):
+            self.context.display_emote(Emote.LAUGHING)
+        elif self.context.get_player_remaining_tower_boost_time(me):
+            self.context.display_emote(Emote.SHOCKED)
 
     def get_sequence(self) -> list[Play]:
         banned_monkeys = self.context.get_banned_monkeys()
@@ -557,7 +559,7 @@ class MyBot(ArazimWarsBot):
 
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
-        # self.brain.handle_emotes()
+        self.brain.handle_emotes()
         self.brain.handle_econ()
         if self.brain.round_num > 6 and self.context.get_current_steps() % 500:
             if self.brain.should_tower_boost():
