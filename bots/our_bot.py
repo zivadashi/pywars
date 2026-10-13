@@ -156,6 +156,8 @@ class Play:
 
 
 class PlaceMonkey(Play):
+    interesting = []
+
     def __init__(
         self,
         round_range: range,
@@ -180,12 +182,24 @@ class PlaceMonkey(Play):
     def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         if our_monkeys is None:
             return Result.INVALID_MODE
-        while (res := context.place_monkey(self.kind, Brain.get_random_points())) in (
-            Result.OUT_OF_MAP,
-            Result.TOO_CLOSE_TO_OTHER_MONKEY,
-            Result.TOO_CLOSE_TO_BLOON_ROUTE,
-        ):
-            continue
+        res = Result.OK
+        interesting = self.get_all_points(context)
+        random.shuffle(interesting)
+        if interesting:
+            for i in interesting:
+                res = context.place_monkey(self.kind, i)
+                if res == Result.OK:
+                    our_monkeys.append(GeneralMonkey(len(our_monkeys), context))
+                    return res
+        if res != Result.OK:
+            while (
+                res := context.place_monkey(self.kind, Brain.get_random_points())
+            ) in (
+                Result.OUT_OF_MAP,
+                Result.TOO_CLOSE_TO_OTHER_MONKEY,
+                Result.TOO_CLOSE_TO_BLOON_ROUTE,
+            ):
+                continue
 
         if res == Result.OK:
             our_monkeys.append(GeneralMonkey(len(our_monkeys), context))
@@ -193,6 +207,41 @@ class PlaceMonkey(Play):
 
     def __str__(self) -> str:
         return f"PM, kind: {self.kind}, pos: {self.position}"
+
+    def get_interesting_points(self, context: API) -> list[tuple]:
+        ret: list[tuple] = []
+        bloons: list[LineInfo] = context.get_bloon_route()
+        eco: list[LineInfo] = context.get_eco_bloon_route()
+        for line_seg in bloons:
+            if line_seg.hidden:
+                continue
+            end = line_seg.end
+            for seg in eco:
+                if seg.end == end:
+                    ret.append(end)
+        return ret
+
+    def get_all_points(self, context: API) -> list[tuple]:
+        pivots = self.get_interesting_points(context)
+        all_points = []
+        for pivot in pivots:
+            x, y = pivot
+            points = PlaceMonkey.get_deltas(40, x, y)
+            all_points.extend(points)
+        return all_points
+
+    @staticmethod
+    def get_deltas(d: int = 40, x: int = 0, y: int = 0) -> list[tuple[int]]:
+        return [
+            (x, d + y),
+            (x + d, y),
+            (x, y - d),
+            (x - d, y),
+            (x + d, y + d),
+            (x + d, y - d),
+            (x - d, y - d),
+            (x - d, y + d),
+        ].copy()
 
 
 class Attack(Play):
@@ -375,12 +424,16 @@ class Brain:
             5: EcoBloons.SPACED_PINK,
             6: EcoBloons.SPACED_PINK,
             7: EcoBloons.SPACED_PINK,
-            8: EcoBloons.SPACED_WHITE,
-            9: EcoBloons.SPACED_WHITE,
+            8: EcoBloons.SPACED_PINK,
+            9: EcoBloons.SPACED_PINK,
             10: EcoBloons.SPACED_LEAD,
             11: EcoBloons.SPACED_LEAD,
-            12: EcoBloons.SPACED_ZEBRA,
-            13: EcoBloons.SPACED_ZEBRA,
+            12: EcoBloons.SPACED_LEAD,
+            13: EcoBloons.SPACED_LEAD,
+            14: EcoBloons.SPACED_WHITE,
+            15: EcoBloons.SPACED_WHITE,
+            16: EcoBloons.SPACED_WHITE,
+            17: EcoBloons.SPACED_WHITE,
         }
         self.get_current_round()
         if self.attacks is None or (
@@ -402,7 +455,7 @@ class Brain:
                     player_index,
                     BLOON_TYPE_BY_ROUND[round_num],
                     5,
-                    round_num >= 10,
+                    round_num >= 12,
                 )
                 for round_num in range(2, 14)
             ]
