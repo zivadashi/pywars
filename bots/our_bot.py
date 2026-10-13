@@ -1,8 +1,8 @@
-from random import choice
+import random
 
 from api import *
 
-POINT_GRID = ((x, y) for x in range(40, 400) for y in range(50, 550))
+POINT_GRID = [(x, y) for x in range(40, 400) for y in range(50, 550)]
 ROUND_INF = 100
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 MONKEY_RADII = {
@@ -178,16 +178,14 @@ class PlaceMonkey(Play):
     def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         if our_monkeys is None:
             return Result.INVALID_MODE
-        while res := context.place_monkey(
-            self.kind, Brain.get_random_points(context=context, monkey=self.kind)
-        ) in (
+        while (res := context.place_monkey(self.kind, Brain.get_random_points())) in (
             Result.OUT_OF_MAP,
             Result.TOO_CLOSE_TO_OTHER_MONKEY,
             Result.TOO_CLOSE_TO_BLOON_ROUTE,
         ):
             continue
 
-        if (res) == Result.OK:
+        if res == Result.OK:
             our_monkeys.append(GeneralMonkey(len(our_monkeys), context))
         return res
 
@@ -246,11 +244,11 @@ class Brain:
         self.our_monkeys: list[GeneralMonkey] = []
         self.context = context
         self.round_times = self.context.get_round_times()
-        self.sequence = self.get_sequence
+        self.sequence = self.get_sequence()
 
     @staticmethod
-    def get_random_points(context: API, monkey: Monkeys) -> list:
-        return choice(POINT_GRID)
+    def get_random_points() -> tuple[int, int]:
+        return random.choice(POINT_GRID)
 
     def get_current_round(self) -> int:
         curr = self.context.get_current_steps()
@@ -342,7 +340,7 @@ class Brain:
 
     def get_sequence(self) -> list[Play]:
         banned_monkeys = self.context.get_banned_monkeys()
-        sequence = PLAYS[self.context.get_map()]
+        sequence = RAND_PLAY
         index = -1
         banned_indexes = []
         replacement = next(
@@ -376,7 +374,7 @@ class MyBot(ArazimWarsBot):
         self.monkeys: list[GeneralMonkey] = []
         self.emote_index = 0
         if self.context.get_current_time() == 0:
-            self.context.ban_monkey(Monkeys.TACK_SHOOTER)
+            self.context.ban_monkey(Monkeys.SNIPER_MONKEY)
 
     def run(self) -> None:
         if self.init_seq:
@@ -527,3 +525,35 @@ PLAYS = {
     Maps.TEMPLE: BANANZA_TEMPLE_PLAYS,
     Maps.SHAPES: BANANZA_SHAPES_PLAYS,
 }
+RAND_PLAY = [
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (347, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (454, 613)),
+    UpgradeMonkey(range(ROUND_INF), 0, 2, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (202, 280)),
+    UpgradeMonkey(range(ROUND_INF), 0, 3, [1, 2]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.BOMB_TOWER, (314, 262)),
+    UpgradeMonkey(range(ROUND_INF), 0, 4, [0, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.BOMB_TOWER, (259, 304)),
+    UpgradeMonkey(range(ROUND_INF), 0, 5, [0, 0]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (128, 284)),
+    UpgradeMonkey(range(ROUND_INF), 0, 6, [2, 1]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 7, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 8, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 9, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 10, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 11, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 12, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 13, [2, 3]),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (151, 199)),
+    UpgradeMonkey(range(ROUND_INF), 0, 14, [2, 3]),
+]
