@@ -310,7 +310,16 @@ class Brain:
         )
         if tower_boost_time:
             return False
-        return sum(self.BLOON_VALUES[bloon.kind] for bloon in self.context.get_bloons())
+        if (
+            sum(self.BLOON_VALUES[bloon.kind] for bloon in self.context.get_bloons())
+            >= self.TOWER_BOOST_THRESHOLD
+        ):
+            return True
+        return any(
+            self.context.get_player_remaining_bloon_boost_time(bloon.eco_from) != 0
+            for bloon in self.context.get_bloons()
+            if bloon.eco_from is not None
+        )
 
 
 class MyBot(ArazimWarsBot):
@@ -326,6 +335,8 @@ class MyBot(ArazimWarsBot):
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
         # self.brain.handle_econ()
+        if self.brain.should_tower_boost():
+            self.context.tower_boost()
 
 
 # idxs: Tack 0, Tack 1, Sniper 2
