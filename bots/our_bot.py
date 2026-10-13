@@ -232,11 +232,8 @@ class Brain:
         self.round_times = self.context.get_round_times()
 
     def get_current_round(self) -> int:
-        for i in range(len(self.round_times) - self.round_num):
-            if self.round_times[self.round_num + i] <= self.context.get_current_time():
-                self.round_num = i
-                return i
-        return i
+        curr = self.context.get_current_steps()
+        return len([round_time for round_time in self.round_times if round_time < curr])
 
     def sequential_play(self, plays: list[Play]) -> None:
         """sequentially tries to run all plays"""
@@ -337,6 +334,7 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
+        self.context.log_info(f"round nums: {self.brain.get_current_round()}")
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
