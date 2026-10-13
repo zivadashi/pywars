@@ -2,6 +2,14 @@ from api import *
 
 ROUND_INF = 100
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
+MONKEY_RADII = {
+    Monkeys.DART_MONKEY: 26,
+    Monkeys.TACK_SHOOTER: 26,
+    Monkeys.NINJA_MONKEY: 27,
+    Monkeys.SUPER_MONKEY: 39,
+    Monkeys.BOMB_TOWER: 32,
+    Monkeys.SNIPER_MONKEY: 26,
+}
 
 
 class GeneralMonkey:
@@ -208,7 +216,10 @@ class Brain:
         self.our_monkeys: list[GeneralMonkey] = []
         self.context = context
         self.round_times = self.context.get_round_times()
-        self.sequence = PLAYS[self.context.get_map()]
+        self.sequence = PLAYS.get(self.context.get_map(), self.get_random_points())
+
+    def get_random_points(self) -> list:
+        gridsize = [[(x,y) for y in range(MONKEY_RADII[Monkeys.BOMB_TOWER],self.context.)]]
 
     def get_current_round(self) -> int:
         curr = self.context.get_current_steps()
