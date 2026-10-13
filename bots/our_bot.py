@@ -72,6 +72,7 @@ class GeneralMonkey:
                         bloon
                         for bloon in self.context.get_bloons()
                         if bloon.kind.value < EcoBloons.MOAB.value
+                        if bloon.kind.value < EcoBloons.MOAB.value
                     ]
                     if not len(bloons):
                         return Result.INVALID_BLOON_INDEX
@@ -327,6 +328,7 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
+        self.context.log_info(f"round nums: {self.brain.get_current_round()}")
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
