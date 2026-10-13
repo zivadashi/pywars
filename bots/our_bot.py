@@ -1,38 +1,7 @@
 from api import *
 
+ROUND_INF = 100
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
-ROUND_INF = 1000
-
-
-class Play:
-    """abstraction of 1 play - a purchase&placement, upgrade etc"""
-
-    def __init__(self, round_range: range, minimal_balance: int) -> None:
-        self.did_it = False
-        self.round_range = round_range
-        self.minimal_balance = minimal_balance
-
-    def do_play(
-        self,
-        curr_round: int,
-        curr_balance: int,
-        context: API,
-        our_monkeys: list[GeneralMonkey] | None = None,
-    ) -> bool:
-        """runs the play if needed and allowed"""
-        if self.did_it:
-            return False
-        if curr_round not in self.round_range:
-            return False
-        if curr_balance < self.minimal_balance:
-            return False
-        self.did_it = self.run(context, our_monkeys) == Result.OK
-        return self.did_it
-
-    def run(
-        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
-    ) -> Result:
-        raise NotImplementedError
 
 
 class GeneralMonkey:
@@ -61,22 +30,21 @@ class GeneralMonkey:
 
     def max_target_idx(self, bloons: list[BloonInfo]) -> int:
         """get the strongest bloon index from a list of bloons"""
-        strongest_kind = max(bloon.kind.value for bloon in bloons)
-        return next(
-            idx
-            for idx, bloon in enumerate(bloons)
-            if bloon.kind.value == strongest_kind
-        )
+        strongest = max(bloons, key=lambda b: b.kind.value)
+        return strongest.index
 
     def target_next(self) -> Result:
         """target the bloon for this tick, iterates the targeting options until one is valid"""
+        if self.target_modes == []:
+            self.retarget()
+        bloons = self.context.get_monkey_targets(self.monkey_index)
+        if not len(bloons):
+            return Result.MONKEY_CANT_SEE
         for curr_target in self.target_modes:
             match curr_target:
                 case self.TARGET_MODE_LAST_BLOON:
                     if (
-                        self.context.target_bloon(
-                            self.monkey_index, len(self.context.get_bloons()) - 1
-                        )
+                        self.context.target_bloon(self.monkey_index, bloons[-1].index)
                         in self.TARGETING_ERRORS
                     ):
                         continue
@@ -84,7 +52,7 @@ class GeneralMonkey:
 
                 case self.TARGET_MODE_FIRST_BLOON:
                     if (
-                        self.context.target_bloon(self.monkey_index, 0)
+                        self.context.target_bloon(self.monkey_index, bloons[0].index)
                         in self.TARGETING_ERRORS
                     ):
                         continue
@@ -92,57 +60,121 @@ class GeneralMonkey:
 
                 # strongest bloon
                 case self.TARGET_MODE_STRONGEST_BLOON:
-                    bloons = self.context.get_bloons()
                     if not len(bloons):
                         return Result.INVALID_BLOON_INDEX
                     return self.context.target_bloon(
                         self.monkey_index, self.max_target_idx(bloons)
                     )
+
                 case self.TARGET_MODE_STRONGEST_NON_MOAB_BLOON:
-                    bloons = [
+                    non_moab_bloons = [
                         bloon
-                        for bloon in self.context.get_bloons()
-                        if bloon.kind.value < EcoBloons.MOAB.value
+                        for bloon in bloons
+                        if bloon.kind.value < Bloons.MOAB.value
                     ]
-                    if not len(bloons):
-                        return Result.INVALID_BLOON_INDEX
+                    if not len(non_moab_bloons):
+                        continue
                     return self.context.target_bloon(
-                        self.monkey_index, self.max_target_idx(bloons)
+                        self.monkey_index, self.max_target_idx(non_moab_bloons)
                     )
 
                 # filtered targeting section
                 case self.TARGET_MODE_LEAD_BLOONS:
-                    filtered_bloons = Brain.get_filtered_bloons(
-                        [Bloons.LEAD], self.context
-                    )
-                case self.TARGET_MODE_CAMO_BLOONS:
-                    filtered_bloons = Brain.get_filtered_bloons(
-                        [Bloons.CAMO], self.context
+                    filtered_bloons = [
+                        bloon for bloon in bloons if bloon.kind == Bloons.LEAD
+                    ]
+                    if not len(filtered_bloons):
+                        continue
+                    return self.context.target_bloon(
+                        self.monkey_index, filtered_bloons[0].index
                     )
 
-            for bloon in filtered_bloons:
-                if (
-                    self.context.target_bloon(self.monkey_index, bloon.index)
-                    in self.TARGETING_ERRORS
-                ):
-                    continue
-                return Result.OK
-            return Result.OK
+                case self.TARGET_MODE_CAMO_BLOONS:
+                    filtered_bloons = [bloon for bloon in bloons if bloon.is_camo]
+                    if not len(filtered_bloons):
+                        continue
+                    return self.context.target_bloon(
+                        self.monkey_index, filtered_bloons[0].index
+                    )
+
         return Result.INVALID_BLOON
 
-    def retarget(self, new_mode: str, add_next: bool = False) -> bool:
+    def retarget(self) -> None:
         """either appends as least priority or resets completley to new targeting list"""
-        if new_mode in self.TARGETS:
-            if add_next:
-                self.target_modes.append(new_mode)
-            else:
-                self.target_modes = [new_mode]
-            return True
-        return False
+        monkey = self.context.get_player_monkeys(
+            self.context.get_current_player_index()
+        )[self.monkey_index]
+        self.target_modes = Brain.prioritise_bloon(monkey)
 
     def __str__(self) -> str:
         return f"Monkey number {self.monkey_index} | targets {self.target_modes}"
 
+
+class Play:
+    """abstraction of 1 play - a purchase&placement, upgrade etc"""
+
+    def __init__(self, round_range: range, minimal_balance: int) -> None:
+        self.did_it = False
+        self.round_range = round_range
+        self.minimal_balance = minimal_balance
+
+    def do_play(
+        self,
+        curr_round: int,
+        curr_balance: int,
+        context: API,
+        our_monkeys: list[GeneralMonkey] | None = None,
+    ) -> bool:
+        """runs the play if needed and allowed"""
+        if self.did_it:
+            return False
+        if curr_round not in self.round_range:
+            return False
+        if curr_balance < self.minimal_balance:
+            return False
+        self.did_it = self.run(context, our_monkeys) == Result.OK
+        return self.did_it
+
+    def run(self, context: API, our_monkeys: list[GeneralMonkey] | None = None) -> Result:
+        raise NotImplementedError
+
+
+class Attack(Play):
+    def __init__(
+        self,
+        round_range: range,
+        minimal_balance: int,
+        player_index: int,
+        bloon: EcoBloons,
+        count: int,
+        is_camo: bool = False,
+        is_regen: bool = False,
+    ) -> None:
+        self.did_it = False
+        self.round_range = round_range
+        self.minimal_balance = minimal_balance
+        self.player_index = player_index
+        self.bloon = bloon
+        self.count = count
+        self.is_camo = is_camo
+        self.is_regen = is_regen
+
+    def run(
+        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
+    ) -> Result:
+        while self.count > 0:
+            res = context.send_bloons(
+                self.player_index, self.bloon, self.is_camo, self.is_regen
+            )
+            if (
+                res == Result.ECO_QUEUE_FULL
+                or res == Result.NOT_ENOUGH_MONEY
+                or res == Result.TOO_EARLY
+            ):
+                return Result.OK
+            if res == Result.OK:
+                self.count -= 1
+        return Result.OK
 
 class PlaceMonkey(Play):
     def __init__(
@@ -166,9 +198,7 @@ class PlaceMonkey(Play):
         self.kind = kind
         self.position = position
 
-    def run(
-        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
-    ) -> Result:
+    def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         if our_monkeys is None:
             return Result.INVALID_MODE
         if (res := context.place_monkey(self.kind, self.position)) == Result.OK:
@@ -198,14 +228,13 @@ class UpgradeMonkey(Play):
         self.idx = idx
         self.wanted_rows = wanted_rows
 
-    def run(
-        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
-    ) -> Result:
+    def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         for i in range(2):
             if (
                 self.wanted_rows[i] != 0
                 and context.upgrade_monkey(self.idx, i == 0) == Result.OK
             ):
+                our_monkeys[self.idx].target_modes = []
                 self.wanted_rows[i] -= 1
         return Result.OK if self.wanted_rows == [0, 0] else Result.NOT_ENOUGH_MONEY
 
@@ -213,6 +242,7 @@ class UpgradeMonkey(Play):
 class Brain:
     def __init__(self, context: API):
         self.round_num = 0
+        self.attacks = None
         self.our_monkeys: list[GeneralMonkey] = []
         self.context = context
         self.round_times = self.context.get_round_times()
@@ -220,7 +250,8 @@ class Brain:
 
     def get_current_round(self) -> int:
         curr = self.context.get_current_steps()
-        return len([round_time for round_time in self.round_times if round_time < curr])
+        self.round_num = len([round_time for round_time in self.round_times if round_time < curr])
+        return self.round_num
 
     def sequential_play(self, plays: list[Play]) -> None:
         """sequentially tries to run all plays"""
@@ -236,28 +267,20 @@ class Brain:
         )
         if res:
             plays.pop(0)
-            if isinstance(play, PlaceMonkey):
-                self.our_monkeys.append(
-                    GeneralMonkey(len(self.our_monkeys), self.context)
-                )
-                return
-
-    def place_monkey(self, kind: Monkeys, position: tuple[float, float]) -> Result:
-        if (res := self.context.place_monkey(kind, position)) == Result.OK:
-            self.our_monkeys.append(GeneralMonkey(len(self.our_monkeys), self.context))
-        return res
+        return
 
     @staticmethod
-    def get_filtered_bloons(filter: list[Bloons], api: API) -> list[BloonInfo]:
+    def get_filtered_bloons(filtered: list[Bloons], api: API) -> list[BloonInfo]:
         """gets a list of bloon types to get, and returns the types it found in the existing map"""
         ret = []
         bloons = api.get_bloons()
         for b in bloons:
-            if b.kind in filter:
+            if b.kind in filtered:
                 ret.append(b)
         return ret
 
-    def prioritise_bloon(self, monkey: MonkeyInfo) -> list[str]:
+    @staticmethod
+    def prioritise_bloon(monkey: MonkeyInfo) -> list[str]:
         match monkey.kind, min(monkey.top_level, 3), min(monkey.bottom_level, 3):
             case Monkeys.DART_MONKEY, 3, _:
                 return [GeneralMonkey.TARGET_MODE_LAST_BLOON]
@@ -277,10 +300,6 @@ class Brain:
                 return [GeneralMonkey.TARGET_MODE_STRONGEST_BLOON]
             case _:
                 return [GeneralMonkey.TARGET_MODE_FIRST_BLOON]
-
-    def get_should_attack(self) -> bool:
-        return self.context.get_money() >= 2750 and self.get_current_round() >= 16
-
     # def get_possible_attacks(self):
     #     raise NotImplementedError
 
@@ -309,10 +328,89 @@ class Brain:
         #     self.context.display_emote(EMOTES[self.emote_index])
         #     self.emote_index = (self.emote_index + 1) % len(EMOTES)
 
+   
+    def get_minimal_money(self, round_num: int) -> int:
+        self.get_current_round()
+        if round_num < 3:
+            return 0
+        if round_num < 5:
+            return 1000
+        if round_num < 6:
+            return 1000
+        if round_num < 8:
+            return 1000
+        if round_num < 12:
+            return 1000
+        return 1000
+
     def handle_econ(self) -> None:
         """
         Econ handling.
         """
+        BLOON_TYPE_BY_ROUND = {
+            2: EcoBloons.GROUPED_RED,
+            3: EcoBloons.GROUPED_RED,
+            4: EcoBloons.SPACED_PINK,
+            5: EcoBloons.SPACED_PINK,
+            6: EcoBloons.SPACED_PINK,
+            7: EcoBloons.SPACED_PINK,
+            8: EcoBloons.SPACED_WHITE,
+            9: EcoBloons.SPACED_WHITE,
+            10: EcoBloons.SPACED_LEAD,
+            11: EcoBloons.SPACED_LEAD,
+            12: EcoBloons.SPACED_ZEBRA,
+            13: EcoBloons.SPACED_ZEBRA,
+        }
+        self.get_current_round()
+        if self.attacks is None or (
+            not self.context.is_player_active(self.attacks[0].player_index)
+        ):
+            player_index = 0
+            for player_index in range(8):
+                if (
+                    self.context.is_player_active(player_index)
+                    and player_index != self.context.get_current_player_index()
+                ):
+                    break
+            if player_index >= 8:
+                return
+            attacks = [
+                Attack(
+                    range(round_num, round_num + 1),
+                    self.get_minimal_money(round_num),
+                    player_index,
+                    BLOON_TYPE_BY_ROUND[round_num],
+                    5,
+                    round_num >= 10,
+                )
+                for round_num in range(2, 14)
+            ]
+        if self.get_should_attack(
+            self.context.get_money(), self.round_num, self.context.get_player_count()
+        ):
+            self.sequential_play(
+                [
+                    Attack(
+                        range(self.round_num, self.round_num),
+                        self.get_minimal_money(self.round_num),
+                        player_index,
+                        EcoBloons.GROUPED_RAINBOW,
+                        5,
+                        False,
+                        True,
+                    )
+                ]
+            )
+        if self.round_num < 2:
+            pass
+        if 2 <= self.round_num < 14:
+            if self.context.get_current_steps() % 100 == 0:
+                self.context.log_info(f"round {self.round_num} | attack: {self.context.get_money()}")
+            for p in attacks:
+                p.do_play(self.round_num, self.context.get_money(), self.context)
+
+    def get_should_attack(self, money: int, round_num: int, player_count: int) -> bool:
+        return money >= 2750 and round_num >= 16 and player_count == 2
 
     def handle_monkey_placement_and_upgrades(self) -> None:
         self.minimal_defend()
@@ -327,41 +425,14 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
-        # self.brain.handle_monkey_placement_and_upgrades()
+        self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
         self.brain.handle_econ()
 
 
-STANDARD_YELLOW_BRICK_PLAYS = [
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (456, 185)),
-    UpgradeMonkey(range(ROUND_INF), 0, 0, [3, 0]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (27, 386)),
-    UpgradeMonkey(range(ROUND_INF), 0, 1, [3, 0]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (449, 33)),
-    UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (181, 108)),
-    UpgradeMonkey(range(ROUND_INF), 0, 3, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (270, 262)),
-    UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.DART_MONKEY, (238, 390)),
-    UpgradeMonkey(range(ROUND_INF), 0, 5, [2, 3]),
-    UpgradeMonkey(range(ROUND_INF), 0, 0, [1, 2]),
-    UpgradeMonkey(range(ROUND_INF), 0, 1, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (180, 265)),
-    UpgradeMonkey(range(ROUND_INF), 0, 6, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (449, 33)),
-    UpgradeMonkey(range(ROUND_INF), 0, 7, [2, 3]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (289, 42)),
-    UpgradeMonkey(range(ROUND_INF), 0, 8, [3, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (231, 44)),
-    UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (335, 244)),
-    UpgradeMonkey(range(ROUND_INF), 0, 10, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (341, 39)),
-    UpgradeMonkey(range(ROUND_INF), 0, 11, [3, 2]),
-]
-
+# idxs: Tack 0, Tack 1, Sniper 2
+# Ninja 3, Super 4, Ninja 5, Super 6, Sniper 7, Sniper 8, Sniper 9
 BANANZA_INTERCHANGE_PLAYS = [
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (234, 164)),
     UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
