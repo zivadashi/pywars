@@ -215,8 +215,8 @@ class UpgradeMonkey(Play):
 
 class Brain:
     BLOON_VALUES: dict[Bloons, int] = {}
-    TOWER_BOOST_THRESHOLD = 350
-    BLOON_BOOST_THRESHOLD = 100
+    TOWER_BOOST_THRESHOLD = 100
+    BLOON_BOOST_THRESHOLD = 50
 
     def __init__(self, context: API):
         self.monkey_priorities = [
@@ -347,6 +347,8 @@ class Brain:
         self.minimal_defend()
 
     def should_tower_boost(self) -> bool:
+        if self.context.get_current_steps() % 60:
+            return False
         tower_boost_time = self.context.get_player_remaining_tower_boost_time(
             self.context.get_current_player_index()
         )
@@ -367,6 +369,8 @@ class Brain:
         )
 
     def should_bloon_boost(self) -> bool:
+        if self.context.get_current_steps() % 60:
+            return False
         my_idx = self.context.get_current_player_index()
         tower_boost_time = self.context.get_player_remaining_tower_boost_time(
             self.context.get_current_player_index()
