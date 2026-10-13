@@ -204,7 +204,7 @@ class UpgradeMonkey(Play):
 
 class Brain:
     BLOON_VALUES: dict[Bloons, int] = {}
-    TOWER_BOOST_THRESHOLD = 1000
+    TOWER_BOOST_THRESHOLD = 350
 
     def __init__(self, context: API):
         self.round_num = 0
@@ -311,7 +311,10 @@ class Brain:
         if tower_boost_time:
             return False
         if (
-            sum(self.BLOON_VALUES[bloon.kind] for bloon in self.context.get_bloons())
+            sum(
+                self.BLOON_VALUES.get(bloon.kind, bloon.kind.value)
+                for bloon in self.context.get_bloons()
+            )
             >= self.TOWER_BOOST_THRESHOLD
         ):
             return True
