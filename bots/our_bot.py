@@ -399,7 +399,7 @@ class MyBot(ArazimWarsBot):
         self.monkeys: list[GeneralMonkey] = []
         self.emote_index = 0
         if self.context.get_current_time() == 0:
-            self.context.ban_monkey(Monkeys.TACK_SHOOTER)
+            self.context.ban_monkey(Monkeys.SNIPER_MONKEY)
 
     def run(self) -> None:
         if self.init_seq:
