@@ -340,14 +340,14 @@ class Brain:
 
     def get_minimal_money(self,round_num) -> int:
         self.get_current_round()
-        if round_num <6:
+        if round_num <3:
             return 0
-        if round_num <8:
-            return 200
+        if round_num <5:
+            return 500
         if round_num <6:
-            return 500
-        if round_num <10:
-            return 500
+            return 800
+        if round_num <8:
+            return 800
         if  round_num <12:
             return 700
         return 1000
@@ -382,8 +382,7 @@ class Brain:
         if 2<=self.round_num<14:
             for p in attacks:
                 p.do_play(self.round_num,self.context.get_money(),self.context)
-        if self.context.get_current_steps()%100==0:
-            self.context.log_info(attacks[3].round_range)
+
     
     def get_should_attack(self,money: int, round_num: int, player_count: int)->bool: 
         return (money >= 2750 and round_num >= 16 and player_count==2)
