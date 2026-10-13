@@ -73,6 +73,14 @@ class API:
         """Returns a map from game steps to a bloon that is created in that step."""
         raise NotImplementedError("GetBloonSpawns")
 
+    def get_banned_monkeys(self) -> list[Monkeys]:
+        """
+        Returns the banned monkeys of the game.
+        Bans are decided at the end of the first step, so that no bot knows what the others banned while banning.
+        Until then (in `ArazimWarsBot.setup` and in the first call to `ArazimWarsBot.run`), returns an empty list.
+        """
+        raise NotImplementedError("GetBannedMonkeys")
+
     ### CURRENT PLAYER METHODS ###
 
     def get_current_player_index(self) -> int:
@@ -125,8 +133,9 @@ class API:
         """
         Places a monkey with the given type in the given (x,y) position on the player's board.
         Returns whether the operation was successful.
+        Monkeys can't be placed in the first step (in `ArazimWarsBot.setup` and in the first call to `ArazimWarsBot.run`), before the bans are decided.
 
-        Possible results: `Result.NOT_ENOUGH_MONEY`, `Result.OUT_OF_MAP`, `Result.TOO_CLOSE_TO_BLOON_ROUTE`, `Result.TOO_CLOSE_TO_OTHER_MONKEY`, `Result.INVALID_TIME`.
+        Possible results: `Result.NOT_ENOUGH_MONEY`, `Result.OUT_OF_MAP`, `Result.TOO_CLOSE_TO_BLOON_ROUTE`, `Result.TOO_CLOSE_TO_OTHER_MONKEY`, `Result.INVALID_TIME`, `Result.MONKEY_BANNED`.
         """
         raise NotImplementedError("PlaceMonkey")
 
@@ -188,6 +197,36 @@ class API:
         """
         raise NotImplementedError("SetEmote")
 
+    def ban_monkey(self, monkey: Monkeys) -> Result:
+        """
+        Select a monkey to ban for this game.
+        You can only call this method **once**, and **only** in the beginning of the game (in `ArazimWarsBot.setup` or in the first call to `ArazimWarsBot.run`).
+
+        In games with 2 players, every monkey a player bans is banned.
+        In games with more players, the bans are a vote, and the monkeys with the most votes are banned.
+
+        Possible results: `Result.INVALID_TIME`, `Result.CANT_BAN_TWICE`.
+        """
+        raise NotImplementedError("BanMonkey")
+
+    def tower_boost(self) -> Result:
+        """
+        Boost your monkeys' attack speed by 80% for 12 seconds.
+        You have three tower boosts for the whole game.
+
+        Possible results: `Result.NOT_ENOUGH_BOOSTS`.
+        """
+        raise NotImplementedError("TowerBoost")
+
+    def bloon_boost(self) -> Result:
+        """
+        Speed up sending your eco bloons by 20% for 12 seconds.
+        You have three bloon boosts for the whole game.
+
+        Possible results: `Result.NOT_ENOUGH_BOOSTS`.
+        """
+        raise NotImplementedError("BloonBoost")
+
     ### OTHER PLAYER INFORMATION ###
 
     def is_player_active(self, player_index: int) -> bool:
@@ -217,6 +256,22 @@ class API:
         If the `player_index` is invalid, returns an empty list.
         """
         raise NotImplementedError("GetPlayerBloons")
+
+    def get_player_remaining_tower_boost_time(self, player_index: int) -> float:
+        """
+        Returns the remaining time (in seconds) of the tower boost used by the given player.
+        If the player doesn't have a tower boost right now, returns 0.
+        If the `player_index` is invalid, returns 0.
+        """
+        raise NotImplementedError("GetPlayerRemainingTowerBoostTime")
+
+    def get_player_remaining_bloon_boost_time(self, player_index: int) -> float:
+        """
+        Returns the remaining time (in seconds) of the bloon boost used by the given player.
+        If the player doesn't have a bloon boost right now, returns 0.
+        If the `player_index` is invalid, returns 0.
+        """
+        raise NotImplementedError("GetPlayerRemainingBloonBoostTime")
 
     ### GENERAL METHODS ###
 
@@ -403,6 +458,12 @@ class Result(Enum):
     """The given action is invalid for this game mode."""
     INVALID_BLOON = enum.auto()
     """The requested bloon can't be camo or regen because it is a MOAB/BFB/ZOMG."""
+    NOT_ENOUGH_BOOSTS = enum.auto()
+    """You are out of this type of boost."""
+    MONKEY_BANNED = enum.auto()
+    """The monkey that was requested is banned."""
+    CANT_BAN_TWICE = enum.auto()
+    """You tried to ban more than one monkey."""
 
     def __bool__(self) -> bool:
         return self == Result.OK
@@ -433,6 +494,7 @@ class GameMode(Enum):
 
     STANDARD = "Standard"
     DEFENSE = "Defense"
+    BANANZA = "Bananza"
 
 
 @dataclass

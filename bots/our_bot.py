@@ -30,22 +30,21 @@ class GeneralMonkey:
 
     def max_target_idx(self, bloons: list[BloonInfo]) -> int:
         """get the strongest bloon index from a list of bloons"""
-        strongest_kind = max(bloon.kind.value for bloon in bloons)
-        return next(
-            idx
-            for idx, bloon in enumerate(bloons)
-            if bloon.kind.value == strongest_kind
-        )
+        strongest = max(bloons, key=lambda b: b.kind.value)
+        return strongest.index
 
     def target_next(self) -> Result:
         """target the bloon for this tick, iterates the targeting options until one is valid"""
+        if self.target_modes == []:
+            self.retarget()
+        bloons = self.context.get_monkey_targets(self.monkey_index)
+        if not len(bloons):
+            return Result.MONKEY_CANT_SEE
         for curr_target in self.target_modes:
             match curr_target:
                 case self.TARGET_MODE_LAST_BLOON:
                     if (
-                        self.context.target_bloon(
-                            self.monkey_index, len(self.context.get_bloons()) - 1
-                        )
+                        self.context.target_bloon(self.monkey_index, bloons[-1].index)
                         in self.TARGETING_ERRORS
                     ):
                         continue
@@ -53,7 +52,7 @@ class GeneralMonkey:
 
                 case self.TARGET_MODE_FIRST_BLOON:
                     if (
-                        self.context.target_bloon(self.monkey_index, 0)
+                        self.context.target_bloon(self.monkey_index, bloons[0].index)
                         in self.TARGETING_ERRORS
                     ):
                         continue
@@ -61,53 +60,51 @@ class GeneralMonkey:
 
                 # strongest bloon
                 case self.TARGET_MODE_STRONGEST_BLOON:
-                    bloons = self.context.get_bloons()
                     if not len(bloons):
                         return Result.INVALID_BLOON_INDEX
                     return self.context.target_bloon(
                         self.monkey_index, self.max_target_idx(bloons)
                     )
+
                 case self.TARGET_MODE_STRONGEST_NON_MOAB_BLOON:
-                    bloons = [
+                    non_moab_bloons = [
                         bloon
-                        for bloon in self.context.get_bloons()
-                        if bloon.kind.value < EcoBloons.MOAB.value
+                        for bloon in bloons
+                        if bloon.kind.value < Bloons.MOAB.value
                     ]
-                    if not len(bloons):
-                        return Result.INVALID_BLOON_INDEX
+                    if not len(non_moab_bloons):
+                        continue
                     return self.context.target_bloon(
-                        self.monkey_index, self.max_target_idx(bloons)
+                        self.monkey_index, self.max_target_idx(non_moab_bloons)
                     )
 
                 # filtered targeting section
                 case self.TARGET_MODE_LEAD_BLOONS:
-                    filtered_bloons = Brain.get_filtered_bloons(
-                        [Bloons.LEAD], self.context
-                    )
-                case self.TARGET_MODE_CAMO_BLOONS:
-                    filtered_bloons = Brain.get_filtered_bloons(
-                        [Bloons.CAMO], self.context
+                    filtered_bloons = [
+                        bloon for bloon in bloons if bloon.kind == Bloons.LEAD
+                    ]
+                    if not len(filtered_bloons):
+                        continue
+                    return self.context.target_bloon(
+                        self.monkey_index, filtered_bloons[0].index
                     )
 
-            for bloon in filtered_bloons:
-                if (
-                    self.context.target_bloon(self.monkey_index, bloon.index)
-                    in self.TARGETING_ERRORS
-                ):
-                    continue
-                return Result.OK
-            return Result.OK
+                case self.TARGET_MODE_CAMO_BLOONS:
+                    filtered_bloons = [bloon for bloon in bloons if bloon.is_camo]
+                    if not len(filtered_bloons):
+                        continue
+                    return self.context.target_bloon(
+                        self.monkey_index, filtered_bloons[0].index
+                    )
+
         return Result.INVALID_BLOON
 
-    def retarget(self, new_mode: str, add_next: bool = False) -> bool:
+    def retarget(self) -> None:
         """either appends as least priority or resets completley to new targeting list"""
-        if new_mode in self.TARGETS:
-            if add_next:
-                self.target_modes.append(new_mode)
-            else:
-                self.target_modes = [new_mode]
-            return True
-        return False
+        monkey = self.context.get_player_monkeys(
+            self.context.get_current_player_index()
+        )[self.monkey_index]
+        self.target_modes = Brain.prioritise_bloon(monkey)
 
     def __str__(self) -> str:
         return f"Monkey number {self.monkey_index} | targets {self.target_modes}"
@@ -126,7 +123,7 @@ class Play:
         curr_round: int,
         curr_balance: int,
         context: API,
-        our_monkeys: list[GeneralMonkey] | None = None,
+        our_monkeys: list[GeneralMonkey],
     ) -> bool:
         """runs the play if needed and allowed"""
         if self.did_it:
@@ -138,9 +135,7 @@ class Play:
         self.did_it = self.run(context, our_monkeys) == Result.OK
         return self.did_it
 
-    def run(
-        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
-    ) -> Result:
+    def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         raise NotImplementedError
 
 
@@ -166,9 +161,7 @@ class PlaceMonkey(Play):
         self.kind = kind
         self.position = position
 
-    def run(
-        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
-    ) -> Result:
+    def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         if our_monkeys is None:
             return Result.INVALID_MODE
         if (res := context.place_monkey(self.kind, self.position)) == Result.OK:
@@ -198,14 +191,13 @@ class UpgradeMonkey(Play):
         self.idx = idx
         self.wanted_rows = wanted_rows
 
-    def run(
-        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
-    ) -> Result:
+    def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         for i in range(2):
             if (
                 self.wanted_rows[i] != 0
                 and context.upgrade_monkey(self.idx, i == 0) == Result.OK
             ):
+                our_monkeys[self.idx].target_modes = []
                 self.wanted_rows[i] -= 1
         return Result.OK if self.wanted_rows == [0, 0] else Result.NOT_ENOUGH_MONEY
 
@@ -236,28 +228,20 @@ class Brain:
         )
         if res:
             plays.pop(0)
-            if isinstance(play, PlaceMonkey):
-                self.our_monkeys.append(
-                    GeneralMonkey(len(self.our_monkeys), self.context)
-                )
-                return
-
-    def place_monkey(self, kind: Monkeys, position: tuple[float, float]) -> Result:
-        if (res := self.context.place_monkey(kind, position)) == Result.OK:
-            self.our_monkeys.append(GeneralMonkey(len(self.our_monkeys), self.context))
-        return res
+        return
 
     @staticmethod
-    def get_filtered_bloons(filter: list[Bloons], api: API) -> list[BloonInfo]:
+    def get_filtered_bloons(filtered: list[Bloons], api: API) -> list[BloonInfo]:
         """gets a list of bloon types to get, and returns the types it found in the existing map"""
         ret = []
         bloons = api.get_bloons()
         for b in bloons:
-            if b.kind in filter:
+            if b.kind in filtered:
                 ret.append(b)
         return ret
 
-    def prioritise_bloon(self, monkey: MonkeyInfo) -> list[str]:
+    @staticmethod
+    def prioritise_bloon(monkey: MonkeyInfo) -> list[str]:
         match monkey.kind, min(monkey.top_level, 3), min(monkey.bottom_level, 3):
             case Monkeys.DART_MONKEY, 3, _:
                 return [GeneralMonkey.TARGET_MODE_LAST_BLOON]
