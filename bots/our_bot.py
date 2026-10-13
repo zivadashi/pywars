@@ -215,13 +215,13 @@ class UpgradeMonkey(Play):
     def run(
         self, context: API, our_monkeys: list[GeneralMonkey] | None = None
     ) -> Result:
-        done = Result.OK
         for i in range(2):
-            if self.wanted_rows[i] != 0:
-                if not (res := context.upgrade_monkey(self.idx, i == 0)):
-                    self.wanted_rows[i] -= 1
-                done = Result(max(done.value, res.value))
-        return done
+            if self.wanted_rows[i] != 0 and not context.upgrade_monkey(
+                self.idx, i == 0
+            ):
+                self.wanted_rows[i] -= 1
+        context.log_info(f"upg res: {self.wanted_rows}")
+        return Result.OK if self.wanted_rows == [0, 0] else Result.NOT_ENOUGH_MONEY
 
 
 class Brain:
