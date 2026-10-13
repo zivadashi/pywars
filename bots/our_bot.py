@@ -344,6 +344,90 @@ class Brain:
             case _:
                 return [GeneralMonkey.TARGET_MODE_FIRST_BLOON]
 
+    def get_minimal_money(self, round_num: int) -> int:
+        self.get_current_round()
+        if round_num < 3:
+            return 0
+        if round_num < 4:
+            return 300
+        if round_num < 5:
+            return 600
+        if round_num < 6:
+            return 500
+        if round_num < 8:
+            return 1000
+        if round_num < 12:
+            return 300
+        return 1000
+
+    def handle_econ(self) -> None:
+        """
+        Econ handling.
+        """
+        BLOON_TYPE_BY_ROUND = {
+            2: EcoBloons.GROUPED_RED,
+            3: EcoBloons.GROUPED_RED,
+            4: EcoBloons.SPACED_PINK,
+            5: EcoBloons.SPACED_PINK,
+            6: EcoBloons.SPACED_PINK,
+            7: EcoBloons.SPACED_PINK,
+            8: EcoBloons.SPACED_WHITE,
+            9: EcoBloons.SPACED_WHITE,
+            10: EcoBloons.SPACED_LEAD,
+            11: EcoBloons.SPACED_LEAD,
+            12: EcoBloons.SPACED_ZEBRA,
+            13: EcoBloons.SPACED_ZEBRA,
+        }
+        self.get_current_round()
+        if self.attacks is None or (
+            not self.context.is_player_active(self.attacks[0].player_index)
+        ):
+            player_index = 0
+            for player_index in range(8):
+                if (
+                    self.context.is_player_active(player_index)
+                    and player_index != self.context.get_current_player_index()
+                ):
+                    break
+            if player_index >= 8:
+                return
+            attacks = [
+                Attack(
+                    range(round_num, round_num + 1),
+                    self.get_minimal_money(round_num),
+                    player_index,
+                    BLOON_TYPE_BY_ROUND[round_num],
+                    5,
+                    round_num >= 10,
+                )
+                for round_num in range(2, 14)
+            ]
+        if self.get_should_attack(
+            self.context.get_money(), self.round_num, self.context.get_player_count()
+        ):
+            self.sequential_play(
+                [
+                    Attack(
+                        range(self.round_num, self.round_num),
+                        self.get_minimal_money(self.round_num),
+                        player_index,
+                        EcoBloons.GROUPED_RAINBOW,
+                        5,
+                        False,
+                        True,
+                    )
+                ]
+            )
+        if self.round_num < 2:
+            pass
+        if 2 <= self.round_num < 14:
+            if self.context.get_current_steps() % 100 == 0:
+                self.context.log_info(
+                    f"round {self.round_num} | attack: {self.context.get_money()}"
+                )
+            for p in attacks:
+                p.do_play(self.round_num, self.context.get_money(), self.context, None)
+
     def get_should_attack(self) -> bool:
         return self.context.get_money() >= 2750 and self.get_current_round() >= 16
 
