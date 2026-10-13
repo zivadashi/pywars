@@ -144,6 +144,31 @@ class Play:
     ) -> Result:
         raise NotImplementedError
 
+class Attack(Play):
+    def __init__(self,
+        round_range:range,
+        minimal_balance:int,                       
+        player_index: int,
+        bloon: EcoBloons,
+        count: int,
+        is_camo: bool = False,
+        is_regen: bool = False,) -> None:
+        self.did_it = False
+        self.round_range = round_range
+        self.minimal_balance = minimal_balance
+        self.player_index = player_index
+        self.bloon = bloon
+        self.count = count
+        self.is_camo = is_camo
+        self.is_regen = is_regen
+    def run(self, context: API,our_monkeys: list[GeneralMonkey] | None = None) -> bool:
+        while self.count>0:
+            res = context.send_bloons(self.player_index,self.bloon,self.is_camo,self.is_regen)
+            if res == Result.ECO_QUEUE_FULL or res == Result.NOT_ENOUGH_MONEY or res == Result.TOO_EARLY:
+                return True
+            if res == Result.OK:
+                self.count-=1
+        return True
 
 class PlaceMonkey(Play):
     def __init__(
@@ -217,11 +242,14 @@ class Brain:
         self.our_monkeys: list[GeneralMonkey] = []
         self.context = context
         self.round_times = self.context.get_round_times()
+        self.attacks = None
         self.sequence = PLAYS[self.context.get_map()]
 
     def get_current_round(self) -> int:
         curr = self.context.get_current_steps()
-        return len([round_time for round_time in self.round_times if round_time < curr])
+        times = self.context.get_round_times()
+        self.round_num = len([round_time for round_time in times if round_time < curr])
+        return self.round_num
 
     def sequential_play(self, plays: list[Play]) -> None:
         """sequentially tries to run all plays"""
@@ -310,11 +338,56 @@ class Brain:
         #     self.context.display_emote(EMOTES[self.emote_index])
         #     self.emote_index = (self.emote_index + 1) % len(EMOTES)
 
+    def get_minimal_money(self,round_num) -> int:
+        self.get_current_round()
+        if round_num <6:
+            return 0
+        if round_num <8:
+            return 200
+        if round_num <6:
+            return 500
+        if round_num <10:
+            return 500
+        if  round_num <12:
+            return 700
+        return 1000
+
+
     def handle_econ(self) -> None:
         """
         Econ handling.
         """
-
+        BLOON_TYPE_BY_ROUND = {
+            2: EcoBloons.GROUPED_RED, 3:  EcoBloons.GROUPED_RED, 4:  EcoBloons.SPACED_PINK,
+        5:  EcoBloons.SPACED_PINK, 6:  EcoBloons.SPACED_PINK, 7:  EcoBloons.SPACED_PINK,
+        8:  EcoBloons.SPACED_WHITE, 9:  EcoBloons.SPACED_WHITE, 10:  EcoBloons.SPACED_LEAD,
+        11:  EcoBloons.SPACED_LEAD, 12:  EcoBloons.SPACED_ZEBRA, 13:  EcoBloons.SPACED_ZEBRA
+        }
+        self.get_current_round()
+        if self.attacks is None or (not self.context.is_player_active(self.attacks[0].player_index)):
+            player_index = 0
+            for player_index in range(8):
+                if self.context.is_player_active(player_index) and player_index != self.context.get_current_player_index():
+                    break
+            if player_index>=8:
+                return
+            attacks = [Attack(range(round_num,round_num+1),
+                                self.get_minimal_money(round_num),
+                                                player_index, 
+                                BLOON_TYPE_BY_ROUND[round_num], 5,round_num>=10) for round_num in range(2,14)]
+        if self.get_should_attack(self.context.get_money(),self.round_num,self.context.get_player_count()):
+            self.sequential_play([Attack(range(self.round_num,self.round_num),self.get_minimal_money(), player_index, EcoBloons.GROUPED_RAINBOW,5,False, True)])
+        if self.round_num<2:
+            pass
+        if 2<=self.round_num<14:
+            for p in attacks:
+                p.do_play(self.round_num,self.context.get_money(),self.context)
+        if self.context.get_current_steps()%100==0:
+            self.context.log_info(attacks[3].round_range)
+    
+    def get_should_attack(self,money: int, round_num: int, player_count: int)->bool: 
+        return (money >= 2750 and round_num >= 16 and player_count==2)
+    
     def handle_monkey_placement_and_upgrades(self) -> None:
         self.minimal_defend()
 
@@ -328,11 +401,10 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
-        self.context.log_info(f"round nums: {self.brain.get_current_round()}")
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
-        # self.brain.handle_econ()
+        self.brain.handle_econ()
 
 
 # idxs: Tack 0, Tack 1, Sniper 2
