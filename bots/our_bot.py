@@ -1,5 +1,7 @@
 from api import *
 
+
+
 ROUND_INF = 100
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
 
@@ -202,11 +204,10 @@ class UpgradeMonkey(Play):
         self, context: API, our_monkeys: list[GeneralMonkey] | None = None
     ) -> Result:
         for i in range(2):
-            if self.wanted_rows[i] != 0 and not context.upgrade_monkey(
+            if self.wanted_rows[i] != 0 and context.upgrade_monkey(
                 self.idx, i == 0
-            ):
+            ) == Result.OK:
                 self.wanted_rows[i] -= 1
-        context.log_info(f"upg res: {self.wanted_rows}")
         return Result.OK if self.wanted_rows == [0, 0] else Result.NOT_ENOUGH_MONEY
 
 
@@ -235,7 +236,6 @@ class Brain:
             our_monkeys=self.our_monkeys,
         )
         if res:
-            self.context.log_info(f"did play! {play}")
             plays.pop(0)
             if isinstance(play, PlaceMonkey):
                 self.our_monkeys.append(
