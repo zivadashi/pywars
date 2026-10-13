@@ -1,4 +1,4 @@
-from api import *
+import api
 
 
 
@@ -123,13 +123,7 @@ class Play:
         self.round_range = round_range
         self.minimal_balance = minimal_balance
 
-    def do_play(
-        self,
-        curr_round: int,
-        curr_balance: int,
-        context: API,
-        our_monkeys: list[GeneralMonkey] | None = None,
-    ) -> bool:
+    def do_play(self, curr_round: int, curr_balance: int, context: API) -> bool:
         """runs the play if needed and allowed"""
         if self.did_it:
             return False
@@ -137,12 +131,10 @@ class Play:
             return False
         if curr_balance < self.minimal_balance:
             return False
-        self.did_it = self.run(context, our_monkeys) == Result.OK
+        self.did_it = self.run(context) == Result.OK
         return self.did_it
 
-    def run(
-        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
-    ) -> Result:
+    def run(self, context: API) -> Result:
         raise NotImplementedError
 
 
@@ -200,15 +192,14 @@ class UpgradeMonkey(Play):
         self.idx = idx
         self.wanted_rows = wanted_rows
 
-    def run(
-        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
-    ) -> Result:
+    def run(self, context: API) -> Result:
+        done = Result.OK
         for i in range(2):
-            if self.wanted_rows[i] != 0 and context.upgrade_monkey(
-                self.idx, i == 0
-            ) == Result.OK:
-                self.wanted_rows[i] -= 1
-        return Result.OK if self.wanted_rows == [0, 0] else Result.NOT_ENOUGH_MONEY
+            if self.wanted_rows[i] != 0:
+                if not (res := context.upgrade_monkey(self.idx, i == 0)):
+                    self.wanted_rows[i] -= 1
+                done = Result(max(done.value, res.value))
+        return done
 
 
 class Brain:
@@ -217,7 +208,6 @@ class Brain:
         self.our_monkeys: list[GeneralMonkey] = []
         self.context = context
         self.round_times = self.context.get_round_times()
-        self.sequence = PLAYS[self.context.get_map()]
 
     def get_current_round(self) -> int:
         curr = self.context.get_current_steps()
@@ -225,19 +215,11 @@ class Brain:
 
     def sequential_play(self, plays: list[Play]) -> None:
         """sequentially tries to run all plays"""
-        if plays is None:
-            return
         self.get_current_round()
-        play = plays[0]
-        res = play.do_play(
-            self.round_num,
-            self.context.get_money(),
-            self.context,
-            our_monkeys=self.our_monkeys,
-        )
-        if res:
-            plays.pop(0)
-            if isinstance(play, PlaceMonkey):
+        for p in plays:
+            res = p.do_play(self.round_num, self.context.get_money(), self.context)
+            # self.context.log_info(f"res: {res}, is place: {isinstance(p, PlaceMonkey)}")
+            if res and isinstance(p, PlaceMonkey):
                 self.our_monkeys.append(
                     GeneralMonkey(len(self.our_monkeys), self.context)
                 )
@@ -289,7 +271,7 @@ class Brain:
     #     raise NotImplementedError
 
     def minimal_defend(self) -> None:
-        self.sequential_play(self.sequence)
+        self.sequential_play(PLAYS[self.context.get_map()])
 
     def handle_monkey_targets(self) -> None:
         """
@@ -328,6 +310,7 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
+        self.context.log_info(f"round nums: {self.brain.get_current_round()}")
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
