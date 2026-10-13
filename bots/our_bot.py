@@ -1,15 +1,4 @@
-# from api import (
-#     API,
-#     ArazimWarsBot,
-#     BloonInfo,
-#     Bloons,
-#     EcoBloons,
-#     Emote,
-#     Maps,
-#     MonkeyInfo,
-#     Monkeys,
-#     Result,
-# )
+from api import *
 
 ROUND_INF = 100
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
@@ -239,10 +228,15 @@ class Brain:
             return
         self.get_current_round()
         play = plays[0]
-        res = play.do_play(self.round_num, self.context.get_money(), self.context)
+        res = play.do_play(
+            self.round_num,
+            self.context.get_money(),
+            self.context,
+            our_monkeys=self.our_monkeys,
+        )
         if res:
+            self.context.log_info(f"did play! {play}")
             plays.pop(0)
-            # self.context.log_info(f"res: {res}, is place: {isinstance(p, PlaceMonkey)}")
             if isinstance(play, PlaceMonkey):
                 self.our_monkeys.append(
                     GeneralMonkey(len(self.our_monkeys), self.context)
