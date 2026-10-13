@@ -1,6 +1,3 @@
-import api
-
-
 # from api import (
 #     API,
 #     ArazimWarsBot,
@@ -334,7 +331,6 @@ class MyBot(ArazimWarsBot):
         self.emote_index = 0
 
     def run(self) -> None:
-        self.context.log_info(f"round nums: {self.brain.get_current_round()}")
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
