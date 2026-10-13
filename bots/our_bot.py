@@ -380,7 +380,7 @@ class Brain:
         for line_seg in bloons:
             if line_seg.hidden:
                 continue
-            end = line_seg.end
+            end = line_seg.start, line_seg.end
             for seg in eco:
                 if seg.end == end:
                     ret.append(end)
