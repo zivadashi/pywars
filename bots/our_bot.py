@@ -522,6 +522,8 @@ class Brain:
         )
         if tower_boost_time:
             return False
+        if self.attacks is None:
+            return False
         return (
             sum(
                 sum(
