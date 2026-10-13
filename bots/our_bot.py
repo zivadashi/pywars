@@ -235,7 +235,6 @@ class Brain:
             our_monkeys=self.our_monkeys,
         )
         if res:
-            self.context.log_info(f"did play! {play}")
             plays.pop(0)
             if isinstance(play, PlaceMonkey):
                 self.our_monkeys.append(
