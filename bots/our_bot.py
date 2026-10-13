@@ -132,7 +132,13 @@ class Play:
         self.round_range = round_range
         self.minimal_balance = minimal_balance
 
-    def do_play(self, curr_round: int, curr_balance: int, context: API) -> bool:
+    def do_play(
+        self,
+        curr_round: int,
+        curr_balance: int,
+        context: API,
+        our_monkeys: list[GeneralMonkey] | None = None,
+    ) -> bool:
         """runs the play if needed and allowed"""
         if self.did_it:
             return False
@@ -140,10 +146,12 @@ class Play:
             return False
         if curr_balance < self.minimal_balance:
             return False
-        self.did_it = self.run(context) == Result.OK
+        self.did_it = self.run(context, our_monkeys) == Result.OK
         return self.did_it
 
-    def run(self, context: API) -> Result:
+    def run(
+        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
+    ) -> Result:
         raise NotImplementedError
 
 
@@ -201,7 +209,9 @@ class UpgradeMonkey(Play):
         self.idx = idx
         self.wanted_rows = wanted_rows
 
-    def run(self, context: API) -> Result:
+    def run(
+        self, context: API, our_monkeys: list[GeneralMonkey] | None = None
+    ) -> Result:
         done = Result.OK
         for i in range(2):
             if self.wanted_rows[i] != 0:
