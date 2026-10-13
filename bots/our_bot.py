@@ -1,7 +1,18 @@
+from random import choice
+
 from api import *
 
+POINT_GRID = ((x, y) for x in range(40, 400) for y in range(50, 550))
 ROUND_INF = 100
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
+MONKEY_RADII = {
+    Monkeys.DART_MONKEY: 26,
+    Monkeys.TACK_SHOOTER: 26,
+    Monkeys.NINJA_MONKEY: 27,
+    Monkeys.SUPER_MONKEY: 39,
+    Monkeys.BOMB_TOWER: 32,
+    Monkeys.SNIPER_MONKEY: 26,
+}
 
 
 class GeneralMonkey:
@@ -167,7 +178,16 @@ class PlaceMonkey(Play):
     def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         if our_monkeys is None:
             return Result.INVALID_MODE
-        if (res := context.place_monkey(self.kind, self.position)) == Result.OK:
+        while res := context.place_monkey(
+            self.kind, Brain.get_random_points(context=context, monkey=self.kind)
+        ) in (
+            Result.OUT_OF_MAP,
+            Result.TOO_CLOSE_TO_OTHER_MONKEY,
+            Result.TOO_CLOSE_TO_BLOON_ROUTE,
+        ):
+            continue
+
+        if (res) == Result.OK:
             our_monkeys.append(GeneralMonkey(len(our_monkeys), context))
         return res
 
@@ -226,7 +246,11 @@ class Brain:
         self.our_monkeys: list[GeneralMonkey] = []
         self.context = context
         self.round_times = self.context.get_round_times()
-        self.sequence = self.get_sequence()
+        self.sequence = self.get_sequence
+
+    @staticmethod
+    def get_random_points(context: API, monkey: Monkeys) -> list:
+        return choice(POINT_GRID)
 
     def get_current_round(self) -> int:
         curr = self.context.get_current_steps()
