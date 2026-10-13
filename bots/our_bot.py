@@ -260,7 +260,7 @@ class Brain:
 
     def sequential_play(self, plays: list[Play]) -> None:
         """sequentially tries to run all plays"""
-        if plays is None:
+        if plays is None or len(plays) == 0:
             return
         self.get_current_round()
         play = plays[0]
