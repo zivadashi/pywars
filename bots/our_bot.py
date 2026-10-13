@@ -561,7 +561,7 @@ class MyBot(ArazimWarsBot):
         self.brain.handle_monkey_targets()
         self.brain.handle_emotes()
         self.brain.handle_econ()
-        if self.brain.round_num > 6 and self.context.get_current_steps() % 500:
+        if self.brain.round_num > 4 and self.context.get_current_steps() % 500:
             if self.brain.should_tower_boost():
                 self.context.tower_boost()
             if self.brain.should_bloon_boost():
