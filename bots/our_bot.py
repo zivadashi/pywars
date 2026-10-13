@@ -134,9 +134,11 @@ class Play:
         curr_round: int,
         curr_balance: int,
         context: API,
-        our_monkeys: list[GeneralMonkey],
+        our_monkeys: list[GeneralMonkey] | None = None,
     ) -> bool:
         """runs the play if needed and allowed"""
+        if our_monkeys is None:
+            our_monkeys = []
         if self.did_it:
             return False
         if curr_round not in self.round_range:
@@ -271,8 +273,6 @@ class UpgradeMonkey(Play):
 
 class Brain:
     BLOON_VALUES: dict[Bloons, int] = {}
-    TOWER_BOOST_THRESHOLD = 100
-    BLOON_BOOST_THRESHOLD = 50
 
     def __init__(self, context: API):
         self.monkey_priorities = [
@@ -287,6 +287,7 @@ class Brain:
         self.context = context
         self.round_times = self.context.get_round_times()
         self.sequence = self.get_sequence()
+        self.attacks = None
 
     @staticmethod
     def get_random_points() -> tuple[int, int]:
@@ -294,7 +295,10 @@ class Brain:
 
     def get_current_round(self) -> int:
         curr = self.context.get_current_steps()
-        return len([round_time for round_time in self.round_times if round_time < curr])
+        self.round_num = len(
+            [round_time for round_time in self.round_times if round_time < curr]
+        )
+        return self.round_num
 
     def sequential_play(self, plays: list[Play]) -> None:
         """sequentially tries to run all plays"""
@@ -402,9 +406,7 @@ class Brain:
                 )
                 for round_num in range(2, 14)
             ]
-        if self.get_should_attack(
-            self.context.get_money(), self.round_num, self.context.get_player_count()
-        ):
+        if self.get_should_attack():
             self.sequential_play(
                 [
                     Attack(
@@ -421,10 +423,10 @@ class Brain:
         if self.round_num < 2:
             pass
         if 2 <= self.round_num < 14:
-            if self.context.get_current_steps() % 100 == 0:
-                self.context.log_info(
-                    f"round {self.round_num} | attack: {self.context.get_money()}"
-                )
+            # if self.context.get_current_steps() % 100 == 0:
+            # self.context.log_info(
+            #     f"round {self.round_num} | attack: {self.context.get_money()}"
+            # )
             for p in attacks:
                 p.do_play(self.round_num, self.context.get_money(), self.context, None)
 
@@ -459,11 +461,6 @@ class Brain:
         #     self.context.display_emote(EMOTES[self.emote_index])
         #     self.emote_index = (self.emote_index + 1) % len(EMOTES)
 
-    def handle_econ(self) -> None:
-        """
-        Econ handling.
-        """
-
     def get_sequence(self) -> list[Play]:
         banned_monkeys = self.context.get_banned_monkeys()
         sequence = RAND_PLAY
@@ -488,11 +485,13 @@ class Brain:
         return sequence
 
     def handle_monkey_placement_and_upgrades(self) -> None:
-        self.minimal_defend()
+        if self.context.get_current_steps() % 10 == 0:
+            self.minimal_defend()
+
+    TOWER_BOOST_THRESHOLD = 150
+    BLOON_BOOST_THRESHOLD = 120
 
     def should_tower_boost(self) -> bool:
-        if self.context.get_current_steps() % 60:
-            return False
         tower_boost_time = self.context.get_player_remaining_tower_boost_time(
             self.context.get_current_player_index()
         )
@@ -506,17 +505,19 @@ class Brain:
             >= self.TOWER_BOOST_THRESHOLD
         ):
             return True
-        return any(
-            self.context.get_player_remaining_bloon_boost_time(bloon.eco_from) != 0
+        attacked_by = {
+            bloon.eco_from
             for bloon in self.context.get_bloons()
             if bloon.eco_from is not None
+        }
+        return any(
+            self.context.get_player_remaining_bloon_boost_time(player) != 0
+            for player in attacked_by
         )
 
     def should_bloon_boost(self) -> bool:
-        if self.context.get_current_steps() % 60:
-            return False
         my_idx = self.context.get_current_player_index()
-        tower_boost_time = self.context.get_player_remaining_tower_boost_time(
+        tower_boost_time = self.context.get_player_remaining_bloon_boost_time(
             self.context.get_current_player_index()
         )
         if tower_boost_time:
@@ -551,14 +552,16 @@ class MyBot(ArazimWarsBot):
                 return
             self.brain.sequence = self.brain.get_sequence()
             self.init_seq = False
+
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
-        # self.brain.handle_econ()
-        if self.brain.should_tower_boost():
-            self.context.tower_boost()
-        if self.brain.should_bloon_boost():
-            self.context.bloon_boost()
+        self.brain.handle_econ()
+        if self.brain.round_num > 6 and self.context.get_current_steps() % 500:
+            if self.brain.should_tower_boost():
+                self.context.tower_boost()
+            if self.brain.should_bloon_boost():
+                self.context.bloon_boost()
 
 
 # idxs: Tack 0, Tack 1, Sniper 2
