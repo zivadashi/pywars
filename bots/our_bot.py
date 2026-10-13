@@ -348,14 +348,16 @@ class Brain:
         self.get_current_round()
         if round_num < 3:
             return 0
+        if round_num < 4:
+            return 300
         if round_num < 5:
-            return 1000
+            return 600
         if round_num < 6:
-            return 1000
+            return 500
         if round_num < 8:
             return 1000
         if round_num < 12:
-            return 1000
+            return 300
         return 1000
 
     def handle_econ(self) -> None:
