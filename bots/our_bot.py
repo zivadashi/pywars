@@ -1,6 +1,3 @@
-import api
-
-
 from api import (
     API,
     ArazimWarsBot,
@@ -220,6 +217,7 @@ class Brain:
         self.our_monkeys: list[GeneralMonkey] = []
         self.context = context
         self.round_times = self.context.get_round_times()
+        self.sequence = PLAYS[self.context.get_map()]
 
     def get_current_round(self) -> int:
         for i in range(len(self.round_times) - self.round_num):
@@ -230,11 +228,15 @@ class Brain:
 
     def sequential_play(self, plays: list[Play]) -> None:
         """sequentially tries to run all plays"""
+        if plays is None:
+            return
         self.get_current_round()
-        for p in plays:
-            res = p.do_play(self.round_num, self.context.get_money(), self.context)
+        play = plays[0]
+        res = play.do_play(self.round_num, self.context.get_money(), self.context)
+        if res:
+            plays.pop(0)
             # self.context.log_info(f"res: {res}, is place: {isinstance(p, PlaceMonkey)}")
-            if res and isinstance(p, PlaceMonkey):
+            if isinstance(play, PlaceMonkey):
                 self.our_monkeys.append(
                     GeneralMonkey(len(self.our_monkeys), self.context)
                 )
@@ -286,7 +288,7 @@ class Brain:
     #     raise NotImplementedError
 
     def minimal_defend(self) -> None:
-        self.sequential_play(PLAYS[self.context.get_map()])
+        self.sequential_play(self.sequence)
 
     def handle_monkey_targets(self) -> None:
         """

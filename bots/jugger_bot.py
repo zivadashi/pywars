@@ -1,4 +1,13 @@
-from api import ArazimWarsBot, BloonInfo, Bloons, EcoBloons, Emote, Exceptions, Maps, Monkeys
+from api import (
+    ArazimWarsBot,
+    BloonInfo,
+    Bloons,
+    EcoBloons,
+    Emote,
+    Exceptions,
+    Maps,
+    Monkeys,
+)
 
 # Only pick the cool emotes of course
 EMOTES = [Emote.NONE, Emote.COOL, Emote.LAUGHING, Emote.LOVE]
@@ -151,7 +160,8 @@ class MyBot(ArazimWarsBot):
 
     def upgrade_monkey(self, monkey_index: int) -> None:
         """upgrade the monkey at the given index"""
-        if (self.monkey_levels[monkey_index] < MAX_PATH_LEN[self.monkeys[monkey_index]] and
-            self.context.upgrade_monkey(monkey_index, True)):
+        if self.monkey_levels[monkey_index] < MAX_PATH_LEN[
+            self.monkeys[monkey_index]
+        ] and self.context.upgrade_monkey(monkey_index, True):
             self.context.log_info(f"monkey_levels: {self.monkey_levels}!")
             self.monkey_levels[monkey_index] += 1
