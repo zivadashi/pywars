@@ -138,6 +138,9 @@ class Play:
     def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         raise NotImplementedError
 
+    def __str__(self) -> str:
+        raise NotImplementedError
+
 
 class PlaceMonkey(Play):
     def __init__(
@@ -168,6 +171,9 @@ class PlaceMonkey(Play):
             our_monkeys.append(GeneralMonkey(len(our_monkeys), context))
         return res
 
+    def __str__(self) -> str:
+        return f"PM, kind: {self.kind}, pos: {self.position}"
+
 
 class UpgradeMonkey(Play):
     """
@@ -193,13 +199,18 @@ class UpgradeMonkey(Play):
 
     def run(self, context: API, our_monkeys: list[GeneralMonkey]) -> Result:
         for i in range(2):
-            if (
-                self.wanted_rows[i] != 0
-                and context.upgrade_monkey(self.idx, i == 0) == Result.OK
-            ):
+            if self.wanted_rows[i] != 0:
+                res = context.upgrade_monkey(self.idx, i == 0)
+                if res == Result.ALREADY_MAXED_OUT:
+                    return Result.OK  # edge case cause by bans
+                elif res != Result.OK:
+                    continue
                 our_monkeys[self.idx].target_modes = []
                 self.wanted_rows[i] -= 1
         return Result.OK if self.wanted_rows == [0, 0] else Result.NOT_ENOUGH_MONEY
+
+    def __str__(self) -> str:
+        return f"UM, idx: {self.idx}, wanted_rows: {self.wanted_rows}"
 
 
 class Brain:
@@ -208,11 +219,18 @@ class Brain:
     BLOON_BOOST_THRESHOLD = 100
 
     def __init__(self, context: API):
+        self.monkey_priorities = [
+            (Monkeys.DART_MONKEY, [2, 3]),
+            (Monkeys.TACK_SHOOTER, [2, 1]),
+            (Monkeys.NINJA_MONKEY, [3, 0]),
+            (Monkeys.BOMB_TOWER, [1, 1]),
+            (Monkeys.SNIPER_MONKEY, [1, 2]),
+        ]
         self.round_num = 0
         self.our_monkeys: list[GeneralMonkey] = []
         self.context = context
         self.round_times = self.context.get_round_times()
-        self.sequence = PLAYS[self.context.get_map()]
+        self.sequence = self.get_sequence()
 
     def get_current_round(self) -> int:
         curr = self.context.get_current_steps()
@@ -302,6 +320,29 @@ class Brain:
         Econ handling.
         """
 
+    def get_sequence(self) -> list[Play]:
+        banned_monkeys = self.context.get_banned_monkeys()
+        sequence = PLAYS[self.context.get_map()]
+        index = -1
+        banned_indexes = []
+        replacement = next(
+            priority
+            for priority in self.monkey_priorities
+            if priority[0] not in banned_monkeys
+        )
+        for i, m in enumerate(sequence):
+            if isinstance(m, PlaceMonkey):
+                index += 1
+            if isinstance(m, PlaceMonkey) and m.kind in banned_monkeys:
+                banned_indexes.append(index)
+                sequence[i] = PlaceMonkey(
+                    m.round_range, m.minimal_balance, replacement[0], m.position
+                )
+        for m in sequence:
+            if isinstance(m, UpgradeMonkey) and m.idx in banned_indexes:
+                m.wanted_rows = replacement[1].copy()
+        return sequence
+
     def handle_monkey_placement_and_upgrades(self) -> None:
         self.minimal_defend()
 
@@ -347,13 +388,21 @@ class Brain:
 
 class MyBot(ArazimWarsBot):
     def setup(self) -> None:
+        self.init_seq = True
         self.brain = Brain(self.context)
         self.monkey_count = 0
         self.monkey_levels: list[int] = []
         self.monkeys: list[GeneralMonkey] = []
         self.emote_index = 0
+        if self.context.get_current_time() == 0:
+            self.context.ban_monkey(Monkeys.TACK_SHOOTER)
 
     def run(self) -> None:
+        if self.init_seq:
+            if self.context.get_current_time() < 1:
+                return
+            self.brain.sequence = self.brain.get_sequence()
+            self.init_seq = False
         self.brain.handle_monkey_placement_and_upgrades()
         self.brain.handle_monkey_targets()
         # self.brain.handle_emotes()
@@ -373,12 +422,12 @@ BANANZA_INTERCHANGE_PLAYS = [
     UpgradeMonkey(range(ROUND_INF), 0, 1, [2, 1]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 26)),
     UpgradeMonkey(range(ROUND_INF), 0, 2, [1, 2]),
-    PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (248, 361)),
+    PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (248, 361)),
     UpgradeMonkey(range(ROUND_INF), 0, 3, [4, 0]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (358, 301)),
     UpgradeMonkey(range(ROUND_INF), 0, 4, [2, 1]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.NINJA_MONKEY, (249, 420)),
-    UpgradeMonkey(range(ROUND_INF), 0, 5, [4, 0]),
+    UpgradeMonkey(range(ROUND_INF), 0, 5, [3, 0]),
     UpgradeMonkey(range(ROUND_INF), 0, 2, [2, 0]),
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.SUPER_MONKEY, (167, 258)),
     UpgradeMonkey(range(ROUND_INF), 0, 6, [2, 1]),
@@ -389,6 +438,7 @@ BANANZA_INTERCHANGE_PLAYS = [
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.SNIPER_MONKEY, (455, 200)),
     UpgradeMonkey(range(ROUND_INF), 0, 9, [3, 2]),
 ]
+
 BANANZA_YELLOWBRICK_PLAYS = [
     PlaceMonkey(range(ROUND_INF), 0, Monkeys.TACK_SHOOTER, (151, 199)),
     UpgradeMonkey(range(ROUND_INF), 0, 0, [2, 1]),
